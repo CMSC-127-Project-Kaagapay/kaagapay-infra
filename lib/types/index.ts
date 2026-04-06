@@ -1,0 +1,27 @@
+import * as cdk from "aws-cdk-lib";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as s3 from "aws-cdk-lib/aws-s3";
+import * as cognito from "aws-cdk-lib/aws-cognito";
+
+export interface BaseConstructProps {
+  stage: string;
+}
+
+export interface BaseStackProps extends cdk.StackProps {
+  stage: string;
+}
+
+export interface StatefulStackProps extends BaseStackProps {}
+
+export interface StatelessStackProps extends BaseStackProps {
+  dataBucket: s3.IBucket;
+  dynamodbTable: dynamodb.ITable;
+  userPool: cognito.IUserPool;
+  userPoolClient: cognito.IUserPoolClient;
+  corsOrigins?: string[];
+}
+
+export interface GlobalStackProps extends BaseStackProps {
+  apiEndpoint: string;
+  websiteBucket: s3.IBucket;
+}
