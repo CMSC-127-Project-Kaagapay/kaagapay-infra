@@ -1,4 +1,3 @@
-```markdown
 # Project Kaagapay Backend
 
 A secure web-based notification bridge between victims of gender-related issues and the Kaagapay volunteer network. This platform utilizes a "Bridge Concept" to ensure immediate response without compromising sensitive narrative data.
@@ -101,6 +100,7 @@ dbname=postgres
 ---
 
 ## 🛡️ Security Logic
+```
 - **Anonymity:** No narratives are stored in the database.
 - **Handshake:** Token-based system (`case_id`) for secure victim-volunteer pairing.
 - **TTL:** Specific volunteer requests expire in 15 minutes via `pg_cron`.
