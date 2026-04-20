@@ -9,6 +9,11 @@ from models.entities.base import Base
 from models.entities.volunteers import VolunteerEntity
 from models.entities.programs import ProgramEntity
 from models.entities.volunteerApplications import VolunteerApplicationEntity
+from models.entities.alliedOffices import AlliedOfficeEntity
+from models.entities.contactLines import ContactLineEntity
+from models.entities.notifications import NotificationEntity
+from models.entities.ticketStatusLogs import TicketStatusLogEntity
+from models.entities.incidentTickets import IncidentTicketEntity
 
 # Load environment variables from .env
 load_dotenv()
