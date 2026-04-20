@@ -2,6 +2,7 @@ from sqlalchemy import ForeignKey, String, DateTime, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 from datetime import datetime
+import uuid
 
 class IncidentTicketEntity(Base):
     __tablename__ = "incident_tickets"
