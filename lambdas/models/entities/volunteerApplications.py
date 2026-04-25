@@ -14,6 +14,7 @@ class VolunteerApplicationEntity(Base):
 
     # Applicant Information
     full_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    motivation: Mapped[str] = mapped_column(String(100), nullable=False)
 
     # This will be migrated to the Volunteers table upon approval
     public_alias: Mapped[str] = mapped_column(String(50), nullable=False)
