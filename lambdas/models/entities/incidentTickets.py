@@ -7,7 +7,9 @@ import uuid
 class IncidentTicketEntity(Base):
     __tablename__ = "incident_tickets"
 
-    case_id: Mapped[str] = mapped_column(String(16), primary_key=True)  # cryptographic token
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
     demographic: Mapped[str] = mapped_column(String(50), nullable=False)
     locality: Mapped[str] = mapped_column(String(50), nullable=False)
     involved_party: Mapped[str] = mapped_column(String(50), nullable=False)

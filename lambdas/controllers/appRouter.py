@@ -1,14 +1,16 @@
-from fastapi import APIRouter, responses
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-# from controllers.authController import authRouter
+from controllers.volunteerController import volunteersRouter
+from controllers.incidentTicketController import router as incidentTicketsRouter
 
 
-app_router = APIRouter()
+appRouter = APIRouter()
 
 
-@app_router.get("/", response_class=HTMLResponse)
+@appRouter.get("/", response_class=HTMLResponse)
 def welcomeOhara():
     return "<h1>Welcome to Kaagapay API</h1>"
 
 
-# app_router.include_router(authRouter, tags=["Auth Routes"])
+appRouter.include_router(volunteersRouter, tags=["volunteers Routes"])
+appRouter.include_router(incidentTicketsRouter, tags=["Incident Tickets Routes"])

@@ -11,10 +11,8 @@ class ProgramEntity(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, server_default=text("gen_random_uuid()")
     )
-
     # Program Title (e.g., "Safe Spaces Workshop", "Volunteer Training")
     title: Mapped[str] = mapped_column(String(100), nullable=False)
-
     # Detailed description of the program/initiative
     description: Mapped[str] = mapped_column(String(1000), nullable=False)
 

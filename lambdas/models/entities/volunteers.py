@@ -28,3 +28,4 @@ class VolunteerEntity(Base):
     claimed_tickets = relationship(
         "IncidentTicketEntity", back_populates="assigned_volunteer"
     )
+    status_logs = relationship("TicketStatusLogEntity", back_populates="volunteer")
