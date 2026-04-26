@@ -14,6 +14,7 @@ from models.entities.contactLines import ContactLineEntity
 from models.entities.notifications import NotificationEntity
 from models.entities.ticketStatusLogs import TicketStatusLogEntity
 from models.entities.incidentTickets import IncidentTicketEntity
+from models.entities.admins import AdminEntity
 
 # Load environment variables from .env
 load_dotenv()
