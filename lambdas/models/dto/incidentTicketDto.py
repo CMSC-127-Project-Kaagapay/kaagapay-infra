@@ -11,7 +11,8 @@ class IncidentTicketCreateDto(BaseModel):
     selected_volunteer_id: Optional[uuid.UUID] = None
 
 class IncidentTicketResponseDto(BaseModel):
-    case_id: uuid.UUID
+    id: uuid.UUID
+    public_case_id: str
     demographic: str
     locality: str
     involved_party: str

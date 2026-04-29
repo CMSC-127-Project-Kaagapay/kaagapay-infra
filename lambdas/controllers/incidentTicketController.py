@@ -53,9 +53,9 @@ async def create_incident_report(
         )
 
 
-@router.post("/incidents/{case_id}/claim", response_model=IncidentTicketResponseDto)
+@router.post("/incidents/{public_case_id}/claim", response_model=IncidentTicketResponseDto)
 async def claim_incident_ticket(
-    case_id: uuid.UUID,
+    public_case_id: str,
     # TODO: Implement actual authentication to get the volunteer_id
     # For now, we'll assume a volunteer_id is passed or hardcoded for testing
     volunteer_id: uuid.UUID,  # Placeholder for the ID of the volunteer claiming the ticket
@@ -65,7 +65,7 @@ async def claim_incident_ticket(
     Allows a volunteer to claim an open incident ticket.
     """
     try:
-        claimed_ticket = incident_usecase.claimIncidentTicket(case_id, volunteer_id)
+        claimed_ticket = incident_usecase.claimIncidentTicket(public_case_id, volunteer_id)
         return claimed_ticket
     except HTTPException as e:
         raise e
@@ -76,16 +76,16 @@ async def claim_incident_ticket(
         )
 
 
-@router.get("/incidents/{case_id}", response_model=IncidentTicketResponseDto)
+@router.get("/incidents/{public_case_id}", response_model=IncidentTicketResponseDto)
 async def get_incident_ticket(
-    case_id: uuid.UUID,
+    public_case_id: str,
     incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
 ):
     """
     Allows a victim to retrieve the status of their incident ticket.
     """
     try:
-        incident = incident_usecase.getIncidentTicket(case_id)
+        incident = incident_usecase.getIncidentTicket(public_case_id)
         return incident
     except HTTPException as e:
         raise e

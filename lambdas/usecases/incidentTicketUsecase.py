@@ -10,6 +10,8 @@ from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicket
 import uuid
 from datetime import datetime, timedelta
 from typing import List
+import random
+import string
 
 
 class IncidentTicketUsecase:
@@ -58,7 +60,13 @@ class IncidentTicketUsecase:
         created_at = datetime.now()
         expires_at = created_at + timedelta(minutes=15)
 
+        # Generate Public Case ID (e.g. KGPY-9A3F-88B2)
+        random_part_1 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        random_part_2 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        public_case_id = f"KGPY-{random_part_1}-{random_part_2}"
+
         new_incident = IncidentTicketEntity(
+            public_case_id=public_case_id,
             demographic=incident_dto.demographic,
             locality=incident_dto.locality,
             involved_party=incident_dto.involved_party,
@@ -75,50 +83,50 @@ class IncidentTicketUsecase:
         if incident_dto.routing_type == "specific":
             # Notify specific volunteer
             self._create_notification(
-                ticket_id=created_incident.case_id,
+                ticket_id=created_incident.id,
                 recipient_type="Volunteer",
                 recipient_id=str(assigned_volunteer_id),
-                message=f"New incident assigned to you: {created_incident.case_id}"
+                message=f"New incident assigned to you: {created_incident.public_case_id}"
             )
         elif incident_dto.routing_type == "random":
             # Notify all available volunteers
             all_volunteers = self.volunteer_repo.getAllVolunteers()
             for vol in all_volunteers:
                 self._create_notification(
-                    ticket_id=created_incident.case_id,
+                    ticket_id=created_incident.id,
                     recipient_type="Volunteer",
                     recipient_id=str(vol.id),
-                    message=f"New incident available in 'Open Cases': {created_incident.case_id}"
+                    message=f"New incident available in 'Open Cases': {created_incident.public_case_id}"
                 )
 
         # Secondary notifications to allied offices (all admins)
         all_admins = self.admin_repo.getAllAdmins()
         for admin in all_admins:
             self._create_notification(
-                ticket_id=created_incident.case_id,
+                ticket_id=created_incident.id,
                 recipient_type="Admin",
                 recipient_id=str(admin.id),
-                message=f"New incident report: {created_incident.case_id} for {created_incident.locality}"
+                message=f"New incident report: {created_incident.public_case_id} for {created_incident.locality}"
             )
         # -----------------------------------------------------------------
 
         return IncidentTicketResponseDto.model_validate(created_incident)
 
-    def claimIncidentTicket(self, case_id: uuid.UUID, volunteer_id: uuid.UUID) -> IncidentTicketResponseDto:
+    def claimIncidentTicket(self, public_case_id: str, volunteer_id: uuid.UUID) -> IncidentTicketResponseDto:
         # Start a transaction to ensure atomicity and prevent race conditions
         with self.incident_repo.db.begin():
-            incident = self.incident_repo.getIncidentTicketById(case_id)
+            incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
 
             if not incident:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Incident ticket with ID {case_id} not found."
+                    detail=f"Incident ticket with ID {public_case_id} not found."
                 )
 
             if incident.status != "pending" or incident.assigned_volunteer_id is not None:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Incident ticket {case_id} is already {incident.status} or assigned."
+                    detail=f"Incident ticket {public_case_id} is already {incident.status} or assigned."
                 )
 
             # Assign the volunteer and update status
@@ -128,29 +136,29 @@ class IncidentTicketUsecase:
 
             # Notify the volunteer who claimed the ticket
             self._create_notification(
-                ticket_id=updated_incident.case_id,
+                ticket_id=updated_incident.id,
                 recipient_type="Volunteer",
                 recipient_id=str(volunteer_id),
-                message=f"You have successfully claimed incident ticket: {updated_incident.case_id}"
+                message=f"You have successfully claimed incident ticket: {updated_incident.public_case_id}"
             )
             # Optionally notify admins that a ticket has been claimed
             all_admins = self.admin_repo.getAllAdmins()
             for admin in all_admins:
                 self._create_notification(
-                    ticket_id=updated_incident.case_id,
+                    ticket_id=updated_incident.id,
                     recipient_type="Admin",
                     recipient_id=str(admin.id),
-                    message=f"Incident ticket {updated_incident.case_id} has been claimed by Volunteer {volunteer_id}"
+                    message=f"Incident ticket {updated_incident.public_case_id} has been claimed by Volunteer {volunteer_id}"
                 )
 
             return IncidentTicketResponseDto.model_validate(updated_incident)
 
-    def getIncidentTicket(self, case_id: uuid.UUID) -> IncidentTicketResponseDto:
-        incident = self.incident_repo.getIncidentTicketById(case_id)
+    def getIncidentTicket(self, public_case_id: str) -> IncidentTicketResponseDto:
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
         if not incident:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Incident ticket with ID {case_id} not found."
+                detail=f"Incident ticket with ID {public_case_id} not found."
             )
         return IncidentTicketResponseDto.model_validate(incident)
 

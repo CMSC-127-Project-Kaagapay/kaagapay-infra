@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from models.entities.incidentTickets import IncidentTicketEntity
 import uuid
+from datetime import datetime
 
 class IncidentTicketRepository:
     def __init__(self, db: Session):
@@ -12,8 +13,11 @@ class IncidentTicketRepository:
         self.db.refresh(incident_ticket)
         return incident_ticket
 
-    def getIncidentTicketById(self, case_id: uuid.UUID) -> IncidentTicketEntity | None:
-        return self.db.query(IncidentTicketEntity).filter(IncidentTicketEntity.case_id == case_id).first()
+    def getIncidentTicketById(self, id: uuid.UUID) -> IncidentTicketEntity | None:
+        return self.db.query(IncidentTicketEntity).filter(IncidentTicketEntity.id == id).first()
+
+    def getIncidentTicketByPublicId(self, public_case_id: str) -> IncidentTicketEntity | None:
+        return self.db.query(IncidentTicketEntity).filter(IncidentTicketEntity.public_case_id == public_case_id).first()
 
     def updateIncidentTicket(self, incident_ticket: IncidentTicketEntity) -> IncidentTicketEntity:
         self.db.commit()
