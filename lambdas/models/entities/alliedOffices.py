@@ -15,6 +15,6 @@ class AlliedOfficeEntity(Base):
     description: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Relationships
-    # volunteers = relationship("VolunteerEntity", back_populates="office")
-    # admins = relationship("AdminEntity", back_populates="office")
+    volunteers = relationship("VolunteerEntity", back_populates="office")
+    admins = relationship("AdminEntity", back_populates="office")
     contact_lines = relationship("ContactLineEntity", back_populates="office")

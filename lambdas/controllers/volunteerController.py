@@ -11,6 +11,7 @@ from models.dto.volunteerDto import (
 )
 import uuid
 from typing import List
+from utils.auth import get_current_admin
 
 volunteersRouter = APIRouter()
 
@@ -33,7 +34,9 @@ async def getVolunteers(db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
 )
 async def createVolunteerFromApplicationRoute(
-    application_id: uuid.UUID, db: Session = Depends(get_db)
+    application_id: uuid.UUID, 
+    db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin)
 ):
     volunteerRepository = VolunteerRepository(db)
     volunteerApplicationRepository = VolunteerApplicationRepository(db)
@@ -67,6 +70,7 @@ async def createVolunteerApplicationRoute(
 async def approveVolunteerApplicationRoute(
     application_id: uuid.UUID,
     db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin)
 ):
     volunteerRepository = VolunteerRepository(db)
     volunteerApplicationRepository = VolunteerApplicationRepository(db)
@@ -74,4 +78,4 @@ async def approveVolunteerApplicationRoute(
         volunteerRepository, volunteerApplicationRepository
     )
     # Pass the obtained admin_id to the usecase
-    return volunteerUsecase.approveVolunteerApplication(application_id)
+    return volunteerUsecase.approveVolunteerApplication(application_id, admin_id)

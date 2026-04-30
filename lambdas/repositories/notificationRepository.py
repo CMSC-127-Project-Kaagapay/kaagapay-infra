@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from models.entities.notifications import NotificationEntity
 import uuid
+from typing import List
 
 class NotificationRepository:
     def __init__(self, db: Session):
@@ -21,3 +22,9 @@ class NotificationRepository:
             notification.status = "sent"
             self.db.commit()
 
+    def getNotificationsByRecipient(self, recipient_id: str, recipient_type: str = None) -> List[NotificationEntity]:
+        """Get all notifications for a specific recipient, optionally filtered by type."""
+        query = self.db.query(NotificationEntity).filter(NotificationEntity.recipient_id == recipient_id)
+        if recipient_type:
+            query = query.filter(NotificationEntity.recipient_type == recipient_type)
+        return query.order_by(NotificationEntity.sent_at.desc()).all()

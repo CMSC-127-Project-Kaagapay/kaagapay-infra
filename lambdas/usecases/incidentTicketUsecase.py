@@ -2,16 +2,27 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from models.entities.incidentTickets import IncidentTicketEntity
 from models.entities.notifications import NotificationEntity
+from models.entities.ticketStatusLogs import TicketStatusLogEntity
 from repositories.incidentTicketRepository import IncidentTicketRepository
 from repositories.volunteersRepository import VolunteerRepository
 from repositories.adminRepository import AdminRepository
 from repositories.notificationRepository import NotificationRepository
-from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto
+from repositories.ticketStatusLogRepository import TicketStatusLogRepository
+from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto
 import uuid
 from datetime import datetime, timedelta
 from typing import List
 import random
 import string
+
+# Valid status transitions
+VALID_TRANSITIONS = {
+    "pending": ["claimed"],
+    "claimed": ["in_progress"],
+    "in_progress": ["resolved"],
+    "resolved": ["closed"],
+    "closed": [],
+}
 
 
 class IncidentTicketUsecase:
@@ -19,12 +30,14 @@ class IncidentTicketUsecase:
                  incident_repo: IncidentTicketRepository,
                  volunteer_repo: VolunteerRepository,
                  admin_repo: AdminRepository,
-                 notification_repo: NotificationRepository
+                 notification_repo: NotificationRepository,
+                 status_log_repo: TicketStatusLogRepository = None
                 ):
         self.incident_repo = incident_repo
         self.volunteer_repo = volunteer_repo
         self.admin_repo = admin_repo
         self.notification_repo = notification_repo
+        self.status_log_repo = status_log_repo
 
     def createIncidentReport(self, incident_dto: IncidentTicketCreateDto) -> IncidentTicketResponseDto:
         # Determine status and assigned volunteer based on routing type
@@ -161,6 +174,77 @@ class IncidentTicketUsecase:
                 detail=f"Incident ticket with ID {public_case_id} not found."
             )
         return IncidentTicketResponseDto.model_validate(incident)
+
+    def getAllPendingTicketsNoVolunteers(self) -> List[IncidentTicketResponseDto]:
+        incidents = self.incident_repo.getPendingTicketsNoVolunteers()
+        return [IncidentTicketResponseDto.model_validate(incident) for incident in incidents]
+
+    def getRequestedTicketsForVolunteer(self, volunteer_id: uuid.UUID) -> List[IncidentTicketResponseDto]:
+        incidents = self.incident_repo.getRequestedTicketsForVolunteer(volunteer_id)
+        return [IncidentTicketResponseDto.model_validate(incident) for incident in incidents]
+
+    def updateTicketStatus(self, public_case_id: str, new_status: str, volunteer_id: uuid.UUID) -> IncidentTicketResponseDto:
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
+
+        if not incident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Incident ticket with ID {public_case_id} not found."
+            )
+
+        # Validate the volunteer is the one assigned to this ticket
+        if incident.assigned_volunteer_id != volunteer_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not the assigned volunteer for this ticket."
+            )
+
+        # Validate the status transition
+        current_status = incident.status
+        allowed = VALID_TRANSITIONS.get(current_status, [])
+        if new_status not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot transition from '{current_status}' to '{new_status}'. Allowed: {allowed}"
+            )
+
+        # Log the status change
+        if self.status_log_repo:
+            log = TicketStatusLogEntity(
+                ticket_id=incident.id,
+                volunteer_id=volunteer_id,
+                from_status=current_status,
+                to_status=new_status,
+            )
+            self.status_log_repo.createStatusLog(log)
+
+        # Update the ticket status
+        incident.status = new_status
+        updated_incident = self.incident_repo.updateIncidentTicket(incident)
+
+        # Notify admins about the status change
+        all_admins = self.admin_repo.getAllAdmins()
+        for admin in all_admins:
+            self._create_notification(
+                ticket_id=updated_incident.id,
+                recipient_type="Admin",
+                recipient_id=str(admin.id),
+                message=f"Ticket {public_case_id} status changed: {current_status} → {new_status}"
+            )
+
+        return IncidentTicketResponseDto.model_validate(updated_incident)
+
+    def getTicketStatusLogs(self, public_case_id: str) -> List[TicketStatusLogResponseDto]:
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
+        if not incident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Incident ticket with ID {public_case_id} not found."
+            )
+        if not self.status_log_repo:
+            return []
+        logs = self.status_log_repo.getLogsByTicketId(incident.id)
+        return [TicketStatusLogResponseDto.model_validate(log) for log in logs]
 
     # Helper method for creating notifications
     def _create_notification(self, ticket_id: uuid.UUID, recipient_type: str, recipient_id: str, message: str):

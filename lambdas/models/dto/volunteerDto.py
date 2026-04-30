@@ -19,6 +19,7 @@ class VolunteerResponseDto(BaseModel):
     external_handle: str
     status: str
     incentive_points: int
+    office_id: Optional[uuid.UUID] = None
 
     class Config:
         from_attributes = True # Allow ORM models to be used with Pydantic

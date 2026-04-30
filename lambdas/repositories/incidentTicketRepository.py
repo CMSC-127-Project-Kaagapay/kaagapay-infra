@@ -35,3 +35,33 @@ class IncidentTicketRepository:
             )
             .all()
         )
+
+    def getPendingTicketsNoVolunteers(self) -> list[IncidentTicketEntity]:
+        # Query for tickets that are pending and have no assigned volunteer
+        return (
+            self.db.query(IncidentTicketEntity)
+            .filter(
+                IncidentTicketEntity.status == "pending",
+                IncidentTicketEntity.assigned_volunteer_id.is_(None)
+            )
+            .all()
+        )
+
+    def getRequestedTicketsForVolunteer(self, volunteer_id: uuid.UUID) -> list[IncidentTicketEntity]:
+        # Query for tickets requested to a certain volunteer
+        return (
+            self.db.query(IncidentTicketEntity)
+            .filter(
+                IncidentTicketEntity.status == "pending",
+                IncidentTicketEntity.assigned_volunteer_id == volunteer_id
+            )
+            .all()
+        )
+
+    def getAllIncidentTickets(self) -> list[IncidentTicketEntity]:
+        # Get all tickets for admin dashboard
+        return (
+            self.db.query(IncidentTicketEntity)
+            .order_by(IncidentTicketEntity.created_at.desc())
+            .all()
+        )

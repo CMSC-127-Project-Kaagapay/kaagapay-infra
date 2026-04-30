@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
-from db import get_db_session
+from db import get_db
 from repositories.incidentTicketRepository import IncidentTicketRepository
 from models.entities.incidentTickets import IncidentTicketEntity
 import sys
@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 def run_ticket_timeout_worker():
-    db: Session = next(get_db_session()) # Use next() to get the session object
+    db: Session = next(get_db()) # Use next() to get the session object
     try:
         incident_repo = IncidentTicketRepository(db)
         timed_out_tickets = incident_repo.getTimedOutPendingTickets()
@@ -28,7 +28,7 @@ def run_ticket_timeout_worker():
             ticket.routing_type = "random"
             ticket.status = "pending" # Back to pending for open cases pool
             incident_repo.updateIncidentTicket(ticket)
-            print(f"Ticket {ticket.case_id} timed out and moved to open cases pool.")
+            print(f"Ticket {ticket.public_case_id} timed out and moved to open cases pool.")
 
             # TODO: Create a notification for admins about this timeout
             # This would involve:

@@ -24,3 +24,7 @@ class IncidentTicketEntity(Base):
     assigned_volunteer = relationship("VolunteerEntity", back_populates="claimed_tickets")
     status_logs = relationship("TicketStatusLogEntity", back_populates="ticket")
     notifications = relationship("NotificationEntity", back_populates="ticket")
+
+    @property
+    def assigned_volunteer_handle(self) -> str | None:
+        return self.assigned_volunteer.external_handle if self.assigned_volunteer else None
