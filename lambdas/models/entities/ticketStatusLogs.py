@@ -7,7 +7,7 @@ class TicketStatusLogEntity(Base):
     __tablename__ = "ticket_status_logs"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=text("gen_random_uuid()"))
-    ticket_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incident_tickets.case_id"), nullable=False)
+    ticket_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incident_tickets.id"), nullable=False)
     volunteer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("volunteers.id"), nullable=True)
     from_status: Mapped[str] = mapped_column(String(100), nullable=False)
     to_status: Mapped[str] = mapped_column(String(100), nullable=False)
