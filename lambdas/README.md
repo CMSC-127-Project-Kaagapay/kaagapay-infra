@@ -103,5 +103,28 @@ dbname=postgres
 ```
 - **Anonymity:** No narratives are stored in the database.
 - **Handshake:** Token-based system (`case_id`) for secure victim-volunteer pairing.
-- **TTL:** Specific volunteer requests expire in 15 minutes via `pg_cron`.
+- **TTL:** Specific volunteer requests expire in 15 minutes via background workers.
 ```
+
+---
+
+## 🔐 Authentication (Getting a Token)
+
+To access protected admin or volunteer routes, you must first obtain an `access_token` from Supabase.
+
+### 1. Login via Terminal
+Run this command (replace placeholders with your real info):
+
+```bash
+curl -X POST 'https://sjsgbvfpgxniweyvxemp.supabase.co/auth/v1/token?grant_type=password' \
+-H "apikey: YOUR_SUPABASE_ANON_KEY" \
+-H "Content-Type: application/json" \
+-d '{
+  "email": "sample@gmail.com",
+  "password": "YOUR_PASSWORD"
+}'
+```
+
+### 2. Using the Token
+Copy the `access_token` from the response and use it in the **Authorize** button in Swagger (`/docs`) or as a Bearer token in your API requests.
+- **Header format**: `Authorization: Bearer <your_token>`

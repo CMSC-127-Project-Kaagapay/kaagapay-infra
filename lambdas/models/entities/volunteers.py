@@ -10,6 +10,8 @@ class VolunteerEntity(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, server_default=text("gen_random_uuid()")
     )
+    office_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("allied_offices.id"), nullable=True)
+
 
     # Internal data
     first_name: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -25,6 +27,7 @@ class VolunteerEntity(Base):
     incentive_points: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationships
+    office = relationship("AlliedOfficeEntity", back_populates="volunteers")
     claimed_tickets = relationship(
         "IncidentTicketEntity", back_populates="assigned_volunteer"
     )

@@ -1,6 +1,7 @@
 alembic==1.18.4
 annotated-doc==0.0.4
 annotated-types==0.7.0
+apscheduler==3.11.2
 anyio==4.13.0
 certifi==2026.2.25
 click==8.3.2

@@ -1,0 +1,11 @@
+import os
+from jose import jwt, JWTError
+
+token = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjFiYjZkYTEzLWZiNjktNGYxZi1hOGU4LWM1NGE4NDU1NzI0NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Nqc2didmZwZ3huaXdleXZ4ZW1wLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJlOWJlNjNjZi1kMjM3LTQwODItYmJjYi1lMTg5NzEyNzQ4MDUiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc3NTUwNDkwLCJpYXQiOjE3Nzc1NDY4OTAsImVtYWlsIjoib29ha29uYXBvZ2lAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3Nzc1NDY4OTB9XSwic2Vzc2lvbl9pZCI6IjA1NzBhYmU3LTk0OGItNDkwMy1hNjM1LTk1MmZlNDVkZWMzZSIsImlzX2Fub255bW91cyI6ZmFsc2V9.QwUqDXeexLh06xcX0Ctm7CcPNO8GxLDmvjpOyR78bkfoaQ4Mu6QBVdk36yDJXV_tBlJbE0buUzEo_oaN9-7J1A"
+secret = "bSqmoldV5S4b7azFzKGabFVG5ejA/P46b+4yvw7JHNvzvzj5visiRi4Xec5xdnYYMh/sbrmXNG3gROaqrbPUNA=="
+
+try:
+    payload = jwt.decode(token, secret, algorithms=["HS256", "ES256"], options={"verify_aud": False})
+    print("Success:", payload)
+except Exception as e:
+    print("Error:", e)

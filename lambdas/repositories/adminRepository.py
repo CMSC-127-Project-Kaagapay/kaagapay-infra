@@ -12,3 +12,9 @@ class AdminRepository:
 
     def getAdminById(self, admin_id: uuid.UUID) -> AdminEntity | None:
         return self.db.query(AdminEntity).filter(AdminEntity.id == admin_id).first()
+
+    def createAdmin(self, admin: AdminEntity) -> AdminEntity:
+        self.db.add(admin)
+        self.db.commit()
+        self.db.refresh(admin)
+        return admin
