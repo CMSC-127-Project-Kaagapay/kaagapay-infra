@@ -21,6 +21,7 @@ class VolunteerEntity(Base):
     # Public-facing data
     public_alias: Mapped[str] = mapped_column(String(50), nullable=False)
     external_handle: Mapped[str] = mapped_column(String(100), nullable=False)
+    profile_image_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # State and Gamification
     status: Mapped[str] = mapped_column(String(20), default="active")
