@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy.orm import Session
 from models.entities.volunteers import VolunteerEntity
 
@@ -18,6 +19,11 @@ class VolunteerRepository:
 
     def createVolunteer(self, volunteer: VolunteerEntity):
         self.db.add(volunteer)
+        self.db.commit()
+        self.db.refresh(volunteer)
+        return volunteer
+
+    def updateVolunteer(self, volunteer: VolunteerEntity):
         self.db.commit()
         self.db.refresh(volunteer)
         return volunteer
