@@ -14,6 +14,12 @@ class VolunteerApplicationRepository:
             .first()
         )
 
+    def getAllVolunteerApplications(self):
+        return (
+            self.db.query(VolunteerApplicationEntity).all()
+        )
+
+
     def createVolunteerApplication(self, application: VolunteerApplicationEntity):
         self.db.add(application)
         self.db.commit()
@@ -29,3 +35,14 @@ class VolunteerApplicationRepository:
             self.db.commit()
             self.db.refresh(application)
         return application
+
+    def rejectVolunteerApplication(self, application_id: uuid.UUID, admin_id: uuid.UUID | None = None):
+        application = self.getVolunteerApplicationById(application_id)
+        if application:
+            application.status = "rejected"
+            # If we add reviewed_by to VolunteerApplicationEntity, we'd set it here
+            # application.reviewed_by = admin_id
+            self.db.commit()
+            self.db.refresh(application)
+        return application
+
