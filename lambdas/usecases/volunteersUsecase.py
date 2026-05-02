@@ -43,6 +43,11 @@ class VolunteersUsecase:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
         return self._map_volunteer_to_dto(volunteer)
 
+    def getAllVolunteerApplications(self) -> List[VolunteerApplicationResponseDto]:
+        volunteerApplications = self.appRepo.getAllVolunteerApplications()
+        return [VolunteerApplicationResponseDto.model_validate(app) for app in volunteerApplications]
+
+
     def getProfileImageUploadUrl(self) -> Dict[str, str]:
         # Generate a random key for the image
         key = f"profiles/{uuid.uuid4()}.jpg" # Can be customized based on requirements
@@ -150,3 +155,34 @@ class VolunteersUsecase:
                 detail=f"Failed to create account and approve application: {e}"
             )
 
+    def rejectVolunteerApplication(self, application_id: uuid.UUID, admin_id: uuid.UUID | None = None) -> VolunteerApplicationResponseDto:
+        application = self.appRepo.getVolunteerApplicationById(application_id)
+
+        if not application:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Volunteer application with id {application_id} not found."
+            )
+
+        if application.status == "approved":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Volunteer application {application_id} is already approved."
+            )
+        if application.status == "rejected":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Volunteer application {application_id} has been rejected already."
+            )
+
+        try:
+            # Mark the application as rejected
+            rejected_application = self.appRepo.rejectVolunteerApplication(application_id, admin_id)
+            return VolunteerApplicationResponseDto.model_validate(rejected_application)
+            
+        except Exception as e:
+            print(f"Failed to reject volunteer: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to reject application: {e}"
+            )
