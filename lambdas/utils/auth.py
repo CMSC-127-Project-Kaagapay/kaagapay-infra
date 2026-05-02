@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+import jwt as pyjwt
+from jwt import PyJWK
 from sqlalchemy.orm import Session
 import os
 from pydantic import BaseModel
@@ -19,12 +20,12 @@ class TokenData(BaseModel):
     user_id: Optional[uuid.UUID] = None
 
 def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)) -> uuid.UUID:
-    token = credentials.credentials
+    token = credentials.credentials.strip('"')
     # Read the secret here to ensure dotenv has already been loaded by the app
     secret = os.getenv("SUPABASE_JWT_SECRET", "your-super-secret-jwt-token-with-at-least-32-characters-long")
     try:
-        # Official Supabase Public Key for ES256 verification
-        SUPABASE_JWK = {
+        # Official Supabase Public Key for ES256 verification (from JWKS endpoint)
+        SUPABASE_JWK_DATA = {
             "alg": "ES256",
             "crv": "P-256",
             "ext": True,
@@ -35,17 +36,29 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(secu
             "x": "l3R5to18f1gC0_bVfgNYXGJB46MtCgBYdfx_PaOmnT4",
             "y": "JMWZ9uXkcWitF6lGFUVKbChSQQ7uaG2zdRiKkCBkn64"
         }
-        
-        # If the token is ES256, use the JWK. If HS256, use the secret.
-        header = jwt.get_unverified_header(token)
-        key = SUPABASE_JWK if header.get("alg") == "ES256" else secret
-        
-        payload = jwt.decode(
-            token, 
-            key, 
-            algorithms=["HS256", "ES256"], 
-            options={"verify_aud": False}
-        )
+
+        # Determine algorithm from token header
+        header = pyjwt.get_unverified_header(token)
+        alg = header.get("alg")
+
+        if alg == "ES256":
+            # Use PyJWK to construct the key from the JWK data
+            jwk_key = PyJWK(SUPABASE_JWK_DATA)
+            payload = pyjwt.decode(
+                token,
+                jwk_key.key,
+                algorithms=["ES256"],
+                options={"verify_aud": False}
+            )
+        else:
+            # Fallback to HS256 with the JWT secret
+            payload = pyjwt.decode(
+                token,
+                secret,
+                algorithms=["HS256"],
+                options={"verify_aud": False}
+            )
+
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
             raise HTTPException(
@@ -62,7 +75,13 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(secu
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return user_id
-    except JWTError as e:
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except pyjwt.InvalidTokenError as e:
         print(f"JWT Error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

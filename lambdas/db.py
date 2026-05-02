@@ -16,8 +16,11 @@ from models.entities.ticketStatusLogs import TicketStatusLogEntity
 from models.entities.incidentTickets import IncidentTicketEntity
 from models.entities.admins import AdminEntity
 
-# Load environment variables from .env
-load_dotenv()
+# Load environment variables from .env (explicit path to avoid CWD issues)
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(_env_path)
+print(f"Loaded .env from: {_env_path}")
+print(f"SUPABASE_URL loaded: {'yes' if os.getenv('SUPABASE_URL') else 'NO - MISSING!'}")
 
 # Check if a full DATABASE_URL is provided (e.g., for local testing)
 DATABASE_URL = os.getenv("DATABASE_URL")

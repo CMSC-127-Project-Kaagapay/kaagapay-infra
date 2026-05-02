@@ -18,6 +18,7 @@ import string
 # Valid status transitions
 VALID_TRANSITIONS = {
     "pending": ["claimed"],
+    "requested": ["claimed"],
     "claimed": ["in_progress"],
     "in_progress": ["resolved"],
     "resolved": ["closed"],
@@ -41,7 +42,7 @@ class IncidentTicketUsecase:
 
     def createIncidentReport(self, incident_dto: IncidentTicketCreateDto) -> IncidentTicketResponseDto:
         # Determine status and assigned volunteer based on routing type
-        ticket_status = "pending"
+        ticket_status = "pending"  # default for random routing
         assigned_volunteer_id = None
 
         if incident_dto.routing_type == "specific":
@@ -58,7 +59,7 @@ class IncidentTicketUsecase:
                     detail=f"Volunteer with ID {incident_dto.selected_volunteer_id} not found."
                 )
             assigned_volunteer_id = incident_dto.selected_volunteer_id
-            # Status remains 'pending' until claimed
+            ticket_status = "requested"  # Mark as 'requested' for specific assignment
 
         elif incident_dto.routing_type == "random":
             # Status remains 'pending' for open cases pool
@@ -136,16 +137,37 @@ class IncidentTicketUsecase:
                     detail=f"Incident ticket with ID {public_case_id} not found."
                 )
 
-            if incident.status != "pending" or incident.assigned_volunteer_id is not None:
+            # Handle "requested" tickets (specific volunteer assignment)
+            if incident.status == "requested":
+                if incident.assigned_volunteer_id != volunteer_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="This ticket is specifically assigned to another volunteer."
+                    )
+                # Check if the 15-minute window has expired
+                if incident.expires_at < datetime.now():
+                    raise HTTPException(
+                        status_code=status.HTTP_410_GONE,
+                        detail="The 15-minute acceptance window has expired for this ticket."
+                    )
+
+            # Handle "pending" tickets (random pool)
+            elif incident.status == "pending":
+                if incident.assigned_volunteer_id is not None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Incident ticket {public_case_id} is already assigned."
+                    )
+            else:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Incident ticket {public_case_id} is already {incident.status} or assigned."
+                    detail=f"Incident ticket {public_case_id} is already {incident.status}."
                 )
 
             # Assign the volunteer and update status
             incident.assigned_volunteer_id = volunteer_id
             incident.status = "claimed"
-            updated_incident = self.incident_repo.updateIncidentTicket(incident) # Update and commit within the transaction
+            updated_incident = self.incident_repo.updateIncidentTicket(incident)
 
             # Notify the volunteer who claimed the ticket
             self._create_notification(
@@ -154,7 +176,7 @@ class IncidentTicketUsecase:
                 recipient_id=str(volunteer_id),
                 message=f"You have successfully claimed incident ticket: {updated_incident.public_case_id}"
             )
-            # Optionally notify admins that a ticket has been claimed
+            # Notify admins that a ticket has been claimed
             all_admins = self.admin_repo.getAllAdmins()
             for admin in all_admins:
                 self._create_notification(

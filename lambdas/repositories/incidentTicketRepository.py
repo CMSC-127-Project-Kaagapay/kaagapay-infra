@@ -25,11 +25,11 @@ class IncidentTicketRepository:
         return incident_ticket
 
     def getTimedOutPendingTickets(self) -> list[IncidentTicketEntity]:
-        # Query for tickets that are pending, assigned, and past their expiration time
+        # Query for tickets that are 'requested' (specific assignment), assigned, and past their expiration time
         return (
             self.db.query(IncidentTicketEntity)
             .filter(
-                IncidentTicketEntity.status == "pending",
+                IncidentTicketEntity.status == "requested",
                 IncidentTicketEntity.assigned_volunteer_id.isnot(None),
                 IncidentTicketEntity.expires_at < datetime.now()
             )
@@ -48,11 +48,11 @@ class IncidentTicketRepository:
         )
 
     def getRequestedTicketsForVolunteer(self, volunteer_id: uuid.UUID) -> list[IncidentTicketEntity]:
-        # Query for tickets requested to a certain volunteer
+        # Query for tickets specifically requested to a certain volunteer
         return (
             self.db.query(IncidentTicketEntity)
             .filter(
-                IncidentTicketEntity.status == "pending",
+                IncidentTicketEntity.status == "requested",
                 IncidentTicketEntity.assigned_volunteer_id == volunteer_id
             )
             .all()

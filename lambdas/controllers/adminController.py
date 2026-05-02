@@ -65,32 +65,6 @@ async def get_tickets_by_status(
         )
 
 
-@router.get("/admin/volunteers", response_model=List[dict])
-async def get_all_volunteers(
-    db: Session = Depends(get_db),
-    admin_id: uuid.UUID = Depends(get_current_admin)
-):
-    """
-    Admin dashboard: Retrieves all registered volunteers.
-    """
-    try:
-        volunteer_repo = VolunteerRepository(db)
-        volunteers = volunteer_repo.getAllVolunteers()
-        return [
-            {
-                "id": str(v.id),
-                "first_name": v.first_name,
-                "last_name": v.last_name,
-                "email": v.email,
-            }
-            for v in volunteers
-        ]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
-
 
 @router.get("/admin/notifications/{admin_id}", response_model=List[NotificationResponseDto])
 async def get_admin_notifications(
