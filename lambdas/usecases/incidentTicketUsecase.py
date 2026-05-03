@@ -10,7 +10,7 @@ from repositories.notificationRepository import NotificationRepository
 from repositories.ticketStatusLogRepository import TicketStatusLogRepository
 from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 import random
 import string
@@ -71,7 +71,7 @@ class IncidentTicketUsecase:
             )
 
         # Calculate expiration time (15 minutes from now)
-        created_at = datetime.now()
+        created_at = datetime.now(timezone.utc)
         expires_at = created_at + timedelta(minutes=15)
 
         # Generate Public Case ID (e.g. KGPY-9A3F-88B2)
@@ -127,66 +127,83 @@ class IncidentTicketUsecase:
         return IncidentTicketResponseDto.model_validate(created_incident)
 
     def claimIncidentTicket(self, public_case_id: str, volunteer_id: uuid.UUID) -> IncidentTicketResponseDto:
-        # Start a transaction to ensure atomicity and prevent race conditions
-        with self.incident_repo.db.begin():
-            incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
 
-            if not incident:
+        if not incident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Incident ticket with ID {public_case_id} not found."
+            )
+
+        # Verify the volunteer exists to prevent Foreign Key Violation 500 errors
+        volunteer = self.volunteer_repo.getVolunteerById(volunteer_id)
+        if not volunteer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Volunteer with ID {volunteer_id} not found."
+            )
+
+        # Handle "requested" tickets (specific volunteer assignment)
+        if incident.status == "requested":
+            if incident.assigned_volunteer_id != volunteer_id:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Incident ticket with ID {public_case_id} not found."
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="This ticket is specifically assigned to another volunteer."
+                )
+            # Check if the 15-minute window has expired
+            if incident.expires_at < datetime.now(timezone.utc):
+                raise HTTPException(
+                    status_code=status.HTTP_410_GONE,
+                    detail="The 15-minute acceptance window has expired for this ticket."
                 )
 
-            # Handle "requested" tickets (specific volunteer assignment)
-            if incident.status == "requested":
-                if incident.assigned_volunteer_id != volunteer_id:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="This ticket is specifically assigned to another volunteer."
-                    )
-                # Check if the 15-minute window has expired
-                if incident.expires_at < datetime.now():
-                    raise HTTPException(
-                        status_code=status.HTTP_410_GONE,
-                        detail="The 15-minute acceptance window has expired for this ticket."
-                    )
-
-            # Handle "pending" tickets (random pool)
-            elif incident.status == "pending":
-                if incident.assigned_volunteer_id is not None:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail=f"Incident ticket {public_case_id} is already assigned."
-                    )
-            else:
+        # Handle "pending" tickets (random pool)
+        elif incident.status == "pending":
+            if incident.assigned_volunteer_id is not None:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Incident ticket {public_case_id} is already {incident.status}."
+                    detail=f"Incident ticket {public_case_id} is already assigned."
                 )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Incident ticket {public_case_id} is already {incident.status}."
+            )
 
-            # Assign the volunteer and update status
-            incident.assigned_volunteer_id = volunteer_id
-            incident.status = "claimed"
-            updated_incident = self.incident_repo.updateIncidentTicket(incident)
+        # Assign the volunteer and update status
+        old_status = incident.status
+        incident.assigned_volunteer_id = volunteer_id
+        incident.status = "claimed"
+        updated_incident = self.incident_repo.updateIncidentTicket(incident)
 
-            # Notify the volunteer who claimed the ticket
+        # Log the status change
+        if self.status_log_repo:
+            log = TicketStatusLogEntity(
+                ticket_id=updated_incident.id,
+                volunteer_id=volunteer_id,
+                from_status=old_status,
+                to_status="claimed",
+            )
+            self.status_log_repo.createStatusLog(log)
+
+        # Notify the volunteer who claimed the ticket
+        self._create_notification(
+            ticket_id=updated_incident.id,
+            recipient_type="Volunteer",
+            recipient_id=str(volunteer_id),
+            message=f"You have successfully claimed incident ticket: {updated_incident.public_case_id}"
+        )
+        # Notify admins that a ticket has been claimed
+        all_admins = self.admin_repo.getAllAdmins()
+        for admin in all_admins:
             self._create_notification(
                 ticket_id=updated_incident.id,
-                recipient_type="Volunteer",
-                recipient_id=str(volunteer_id),
-                message=f"You have successfully claimed incident ticket: {updated_incident.public_case_id}"
+                recipient_type="Admin",
+                recipient_id=str(admin.id),
+                message=f"Incident ticket {updated_incident.public_case_id} has been claimed by Volunteer {volunteer_id}"
             )
-            # Notify admins that a ticket has been claimed
-            all_admins = self.admin_repo.getAllAdmins()
-            for admin in all_admins:
-                self._create_notification(
-                    ticket_id=updated_incident.id,
-                    recipient_type="Admin",
-                    recipient_id=str(admin.id),
-                    message=f"Incident ticket {updated_incident.public_case_id} has been claimed by Volunteer {volunteer_id}"
-                )
 
-            return IncidentTicketResponseDto.model_validate(updated_incident)
+        return IncidentTicketResponseDto.model_validate(updated_incident)
 
     def getIncidentTicket(self, public_case_id: str) -> IncidentTicketResponseDto:
         incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)

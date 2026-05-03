@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from models.entities.incidentTickets import IncidentTicketEntity
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 class IncidentTicketRepository:
     def __init__(self, db: Session):
@@ -31,7 +31,7 @@ class IncidentTicketRepository:
             .filter(
                 IncidentTicketEntity.status == "requested",
                 IncidentTicketEntity.assigned_volunteer_id.isnot(None),
-                IncidentTicketEntity.expires_at < datetime.now()
+                IncidentTicketEntity.expires_at < datetime.now(timezone.utc)
             )
             .all()
         )
