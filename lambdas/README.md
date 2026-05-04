@@ -70,6 +70,13 @@ alembic revision --autogenerate -m "description_of_changes"
 alembic upgrade head
 ```
 
+
+### If Outdated
+```bash
+alembic upgrade heads
+```
+
+### Dont do for now since the database scheme is latest ( May 4, 2026 )
 ---
 
 ## ⚡ Running the Server
@@ -80,6 +87,11 @@ To start the local development server:
 uvicorn main:app --reload --port 8000
 ```
 
+To open the routes webpage:
+```
+http://localhost:8000/docs
+```
+
 ---
 
 ## 🔐 Environment Variables (.env)
@@ -87,14 +99,20 @@ Create a `.env` in the root folder. **Do not commit this file.**
 
 ```env
 # Full URL for SQLAlchemy/Alembic
-DATABASE_URL=postgresql+psycopg2://postgres.[ref]:[pass]@[host]:5432/postgres?sslmode=require
+# DATABASE_URL=postgresql+psycopg2://postgres.[ref]:[pass]@[host]:5432/postgres?sslmode=require
 
 # Individual Fallbacks
-user=...
-password=...
-host=...
-port=5432
-dbname=postgres
+user=
+password=
+host=
+port=
+dbname=
+
+SUPABASE_URL=<SUPABASE_URL>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+
+
+S3_BUCKET_NAME="kaagapay-assets"
 ```
 
 ---
@@ -111,6 +129,7 @@ dbname=postgres
 ## 🔐 Authentication (Getting a Token)
 
 To access protected admin or volunteer routes, you must first obtain an `access_token` from Supabase.
+Create Admin Account in Supabase
 
 ### 1. Login via Terminal
 Run this command (replace placeholders with your real info):
@@ -124,6 +143,20 @@ curl -X POST 'https://sjsgbvfpgxniweyvxemp.supabase.co/auth/v1/token?grant_type=
   "password": "YOUR_PASSWORD"
 }'
 ```
+
+### Volunteer Account
+Run this command:
+
+```bash
+curl -X POST 'https://sjsgbvfpgxniweyvxemp.supabase.co/auth/v1/token?grant_type=password' \
+-H "apikey: YOUR_SUPABASE_ANON_KEY" \
+-H "Content-Type: application/json" \
+-d '{
+  "email": "bomedina1@gmail.com",
+  "password": "Password123"
+}'
+```
+
 
 ### 2. Using the Token
 Copy the `access_token` from the response and use it in the **Authorize** button in Swagger (`/docs`) or as a Bearer token in your API requests.
