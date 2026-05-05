@@ -87,6 +87,7 @@ class VolunteersUsecase:
             motivation=app_dto.motivation,
             public_alias=app_dto.public_alias,
             email=app_dto.email,
+            external_handle=app_dto.external_handle,
             status="pending"  # Default status for new applications
         )
         created_application = self.appRepo.createVolunteerApplication(new_application)
@@ -138,7 +139,7 @@ class VolunteersUsecase:
                 last_name=application.last_name,
                 email=application.email,
                 public_alias=application.public_alias,
-                external_handle="N/A", 
+                external_handle=application.external_handle, 
                 status="active", 
                 incentive_points=0, 
             )
