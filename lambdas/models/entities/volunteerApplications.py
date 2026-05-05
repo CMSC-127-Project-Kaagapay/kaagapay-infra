@@ -15,6 +15,7 @@ class VolunteerApplicationEntity(Base):
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     motivation: Mapped[str] = mapped_column(String(100), nullable=False)
     public_alias: Mapped[str] = mapped_column(String(50), nullable=False)
+    external_handle: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(100), nullable=False)
     # Application State: e.g., 'pending', 'approved', 'rejected'
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
