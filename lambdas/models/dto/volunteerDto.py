@@ -38,6 +38,7 @@ class VolunteerApplicationCreateDto(BaseModel):
     motivation: str
     public_alias: str
     email: str
+    external_handle: str
 
 class VolunteerApplicationResponseDto(BaseModel):
     application_id: uuid.UUID
@@ -47,6 +48,7 @@ class VolunteerApplicationResponseDto(BaseModel):
     public_alias: str
     email: str
     status: str
+    external_handle: str
 
     class Config:
         from_attributes = True # Allow ORM models to be used with Pydantic
