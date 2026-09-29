@@ -1,0 +1,91 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Target environment stage to deploy"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - prod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  determine-stage:
+    runs-on: ubuntu-latest
+    outputs:
+      stage: ${{ steps.set-stage.outputs.stage }}
+    steps:
+      - id: set-stage
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "stage=${{ github.event.inputs.stage }}" >> $GITHUB_OUTPUT
+          else
+            echo "stage=dev" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    needs: determine-stage
+    runs-on: ubuntu-latest
+    environment: ${{ needs.determine-stage.outputs.stage }}
+    env:
+      STAGE: ${{ needs.determine-stage.outputs.stage }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION || 'ap-southeast-1' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python Dependencies & Run Alembic Migrations
+        working-directory: lambdas
+        run: |
+          pip install -r requirements.txt
+          echo "Running database migrations for stage: ${{ env.STAGE }}..."
+          alembic upgrade head
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install CDK Dependencies
+        run: npm ci || npm install
+
+      - name: Build CDK TypeScript
+        run: npm run build
+
+      - name: Deploy CDK Stacks
+        run: |
+          npx cdk deploy --all \
+            -c stage=${{ env.STAGE }} \
+            -c databaseUrl="${{ secrets.DATABASE_URL }}" \
+            -c supabaseUrl="${{ secrets.SUPABASE_URL }}" \
+            -c supabaseJwtSecret="${{ secrets.SUPABASE_JWT_SECRET }}" \
+            -c supabaseServiceRoleKey="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            --require-approval never

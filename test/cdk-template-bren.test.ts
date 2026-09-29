@@ -1,17 +1,20 @@
-import * as cdk from 'aws-cdk-lib/core';
-import { Template, Match } from 'aws-cdk-lib/assertions';
-import * as CdkTemplateBren from '../lib/cdk-template-bren-stack';
+import * as cdk from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import { setupDevEnvironment } from '../bin/environments/dev';
 
-test('SQS Queue and SNS Topic Created', () => {
+test('Dev Environment Stacks Synthesize Correctly', () => {
   const app = new cdk.App();
-  // WHEN
-  const stack = new CdkTemplateBren.CdkTemplateBrenStack(app, 'MyTestStack');
-  // THEN
+  const { statelessStack, globalStack } = setupDevEnvironment(app);
 
-  const template = Template.fromStack(stack);
+  const statelessTemplate = Template.fromStack(statelessStack);
+  const globalTemplate = Template.fromStack(globalStack);
 
-  template.hasResourceProperties('AWS::SQS::Queue', {
-    VisibilityTimeout: 300
-  });
-  template.resourceCountIs('AWS::SNS::Topic', 1);
+  // Assert API Gateway HTTP API, Lambdas, and EventBridge Rule created in Stateless
+  statelessTemplate.resourceCountIs('AWS::ApiGatewayV2::Api', 1);
+  statelessTemplate.resourceCountIs('AWS::Lambda::Function', 2);
+  statelessTemplate.resourceCountIs('AWS::Events::Rule', 1);
+
+  // Assert S3 Website Bucket and CloudFront Distribution created in Global
+  globalTemplate.resourceCountIs('AWS::S3::Bucket', 1);
+  globalTemplate.resourceCountIs('AWS::CloudFront::Distribution', 1);
 });

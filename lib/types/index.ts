@@ -14,14 +14,13 @@ export interface BaseStackProps extends cdk.StackProps {
 export interface StatefulStackProps extends BaseStackProps {}
 
 export interface StatelessStackProps extends BaseStackProps {
-  dataBucket: s3.IBucket;
-  dynamodbTable: dynamodb.ITable;
-  userPool: cognito.IUserPool;
-  userPoolClient: cognito.IUserPoolClient;
   corsOrigins?: string[];
+  databaseUrl?: string;
+  supabaseUrl?: string;
+  supabaseJwtSecret?: string;
+  supabaseServiceRoleKey?: string;
 }
 
 export interface GlobalStackProps extends BaseStackProps {
-  apiEndpoint: string;
-  websiteBucket: s3.IBucket;
+  apiEndpoint?: string;
 }

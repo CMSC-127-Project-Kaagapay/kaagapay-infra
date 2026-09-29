@@ -1,0 +1,38 @@
+name: PR Check & Infrastructure Validation
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: TypeScript Build
+        run: npm run build
+
+      - name: Run Jest Unit Tests
+        run: npm test
+
+      - name: Validate CDK Synthesis (Dev)
+        run: npx cdk synth -c stage=dev
+
+      - name: Validate CDK Synthesis (Staging)
+        run: npx cdk synth -c stage=staging
+
+      - name: Validate CDK Synthesis (Prod)
+        run: npx cdk synth -c stage=prod
