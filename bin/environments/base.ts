@@ -17,7 +17,7 @@ export function setupEnvironment(
 } {
   const statelessStack = new StatelessStack(
     app,
-    `${envConfig.Stateless.stage}-StatelessStack`,
+    `kaagapay-${envConfig.Stateless.stage}-StatelessStack`,
     {
       ...envConfig.Stateless,
       corsOrigins: envConfig.Stateless.corsOrigins,
@@ -42,7 +42,7 @@ export function setupEnvironment(
 
   const globalStack = new GlobalStack(
     app,
-    `${envConfig.Global.stage}-GlobalStack`,
+    `kaagapay-${envConfig.Global.stage}-GlobalStack`,
     {
       ...envConfig.Global,
       apiEndpoint: statelessStack.apiEndpoint,
