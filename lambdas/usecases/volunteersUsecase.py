@@ -19,7 +19,7 @@ class VolunteersUsecase:
         if not supabase_url or not supabase_key:
             raise RuntimeError("Supabase environment variables not set for VolunteersUsecase.")
         self.supabase: Client = create_client(supabase_url, supabase_key)
-        self.S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME', 'profiles')
+        self.S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME', 'kaagapay-assets')
 
 
     def _map_volunteer_to_dto(self, volunteer: VolunteerEntity) -> VolunteerResponseDto:

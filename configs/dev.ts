@@ -1,9 +1,9 @@
 const commons = {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION,
+    account: process.env.CDK_DEFAULT_ACCOUNT || "111111111111",
+    region: process.env.CDK_DEFAULT_REGION || "ap-southeast-1",
   },
-  stage: "template-dev",
+  stage: "dev",
 };
 
 const Stateful = {
@@ -25,7 +25,6 @@ const Global = {
   ...commons,
   env: {
     ...commons.env,
-    region: "us-east-1", // Keep us-east-1 for global resources like CloudFront certificates
   },
 };
 

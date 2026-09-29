@@ -18,7 +18,6 @@ export class S3Construct extends Construct {
 
   private createDataBucket(props: S3ConstructProps): void {
     this.dataBucket = new s3.Bucket(this, `${props.stage}-S3-Bucket-Data`, {
-      bucketName: `${props.stage}-s3-bucket-data`.toLowerCase(), // Note: bucket names must be globally unique
       encryption: s3.BucketEncryption.S3_MANAGED,
       versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -29,7 +28,7 @@ export class S3Construct extends Construct {
       autoDeleteObjects: props.stage === 'dev',
       cors: [
         {
-          allowedOrigins: ['*'], // Example: restrict in production
+          allowedOrigins: ['*'],
           allowedMethods: [
             s3.HttpMethods.GET,
             s3.HttpMethods.POST,
@@ -47,7 +46,6 @@ export class S3Construct extends Construct {
 
   private createAssetsBucket(props: S3ConstructProps): void {
     this.assetsBucket = new s3.Bucket(this, `${props.stage}-S3-Bucket-Assets`, {
-      bucketName: `${props.stage}-s3-bucket-assets`.toLowerCase(), // Note: bucket names must be globally unique
       encryption: s3.BucketEncryption.S3_MANAGED,
       versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
