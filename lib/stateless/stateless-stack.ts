@@ -5,6 +5,7 @@ import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import { StatelessStackProps } from '../types';
 
@@ -30,15 +31,22 @@ export class StatelessStack extends cdk.Stack {
     };
 
     // 1. FastAPI Lambda Function (Docker Container Image)
+    const fastApiLogGroup = new logs.LogGroup(this, `${props.stage}-FastApiLogGroup`, {
+      logGroupName: `/aws/lambda/kaagapay-${props.stage}-fastapi`,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      retention: logs.RetentionDays.ONE_WEEK,
+    });
+
     this.fastApiFunction = new lambda.DockerImageFunction(
       this,
       `${props.stage}-FastApiFunction`,
       {
-        functionName: `${props.stage}-kaagapay-fastapi`,
+        functionName: `kaagapay-${props.stage}-fastapi`,
         code: lambda.DockerImageCode.fromImageAsset(lambdasDir),
         memorySize: 1024,
         timeout: cdk.Duration.seconds(30),
         environment: commonEnv,
+        logGroup: fastApiLogGroup,
       }
     );
 
@@ -49,7 +57,7 @@ export class StatelessStack extends cdk.Stack {
     );
 
     this.httpApi = new apigatewayv2.HttpApi(this, `${props.stage}-HttpApi`, {
-      apiName: `${props.stage}-kaagapay-api`,
+      apiName: `kaagapay-${props.stage}-api`,
       defaultIntegration: fastApiIntegration,
       corsPreflight: {
         allowOrigins: props.corsOrigins && props.corsOrigins.length > 0 ? props.corsOrigins : ['*'],
@@ -69,17 +77,24 @@ export class StatelessStack extends cdk.Stack {
     this.apiEndpoint = this.httpApi.apiEndpoint;
 
     // 3. Dedicated Cron Worker Lambda Function (Docker Image with worker_handler.handler override)
+    const cronWorkerLogGroup = new logs.LogGroup(this, `${props.stage}-CronWorkerLogGroup`, {
+      logGroupName: `/aws/lambda/kaagapay-${props.stage}-cron-worker`,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      retention: logs.RetentionDays.ONE_WEEK,
+    });
+
     this.cronWorkerFunction = new lambda.DockerImageFunction(
       this,
       `${props.stage}-CronWorkerFunction`,
       {
-        functionName: `${props.stage}-kaagapay-cron-worker`,
+        functionName: `kaagapay-${props.stage}-cron-worker`,
         code: lambda.DockerImageCode.fromImageAsset(lambdasDir, {
           cmd: ['worker_handler.handler'],
         }),
         memorySize: 512,
         timeout: cdk.Duration.seconds(60),
         environment: commonEnv,
+        logGroup: cronWorkerLogGroup,
       }
     );
 
