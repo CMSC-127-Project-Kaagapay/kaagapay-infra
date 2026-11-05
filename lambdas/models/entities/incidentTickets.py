@@ -20,6 +20,11 @@ class IncidentTicketEntity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
+    # Soft delete: a ticket with deleted_at set is hidden from every normal query.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("admins.id", ondelete="SET NULL"), nullable=True)
+    deleted_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # Relationships
     assigned_volunteer = relationship("VolunteerEntity", back_populates="claimed_tickets")
     status_logs = relationship("TicketStatusLogEntity", back_populates="ticket")

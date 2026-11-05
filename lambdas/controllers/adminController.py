@@ -5,7 +5,9 @@ from typing import List
 
 from db import get_db
 from models.dto.adminDto import AdminCreateDto, AdminResponseDto, NotificationResponseDto
-from models.dto.incidentTicketDto import IncidentTicketResponseDto
+from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto
+from controllers.incidentTicketController import get_incident_ticket_usecase
+from usecases.incidentTicketUsecase import IncidentTicketUsecase
 from models.entities.admins import AdminEntity
 from repositories.adminRepository import AdminRepository
 from repositories.incidentTicketRepository import IncidentTicketRepository
@@ -37,6 +39,42 @@ async def get_all_tickets(
         )
 
 
+@router.get("/admin/tickets/deleted", response_model=List[DeletedTicketResponseDto])
+async def get_deleted_tickets(
+    incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """
+    Admin dashboard: Retrieves soft-deleted tickets, newest deletion first.
+    """
+    return incident_usecase.getDeletedTickets()
+
+
+@router.delete("/admin/tickets/{public_case_id}", response_model=DeletedTicketResponseDto)
+async def delete_ticket(
+    public_case_id: str,
+    body: TicketDeleteDto = TicketDeleteDto(),
+    incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """
+    Admin dashboard: Soft-deletes a ticket. It disappears from all lists and can be restored.
+    """
+    return incident_usecase.deleteTicket(public_case_id, admin_id, body.reason)
+
+
+@router.post("/admin/tickets/{public_case_id}/restore", response_model=IncidentTicketResponseDto)
+async def restore_ticket(
+    public_case_id: str,
+    incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """
+    Admin dashboard: Restores a soft-deleted ticket.
+    """
+    return incident_usecase.restoreTicket(public_case_id)
+
+
 @router.get("/admin/tickets/{ticket_status}", response_model=List[IncidentTicketResponseDto])
 async def get_tickets_by_status(
     ticket_status: str,
@@ -47,16 +85,9 @@ async def get_tickets_by_status(
     Admin dashboard: Retrieves all incident tickets filtered by status.
     Valid statuses: pending, claimed, in_progress, resolved, closed
     """
-    from models.entities.incidentTickets import IncidentTicketEntity
-
     try:
         incident_repo = IncidentTicketRepository(db)
-        tickets = (
-            db.query(IncidentTicketEntity)
-            .filter(IncidentTicketEntity.status == ticket_status)
-            .order_by(IncidentTicketEntity.created_at.desc())
-            .all()
-        )
+        tickets = incident_repo.getTicketsByStatus(ticket_status)
         return [IncidentTicketResponseDto.model_validate(t) for t in tickets]
     except Exception as e:
         raise HTTPException(

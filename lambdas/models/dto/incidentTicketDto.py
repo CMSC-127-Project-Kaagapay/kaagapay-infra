@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uuid
 from typing import Optional
 from datetime import datetime
@@ -25,6 +25,14 @@ class IncidentTicketResponseDto(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TicketDeleteDto(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=255)
+
+class DeletedTicketResponseDto(IncidentTicketResponseDto):
+    deleted_at: datetime
+    deleted_by: Optional[uuid.UUID] = None
+    deleted_reason: Optional[str] = None
 
 class TicketStatusUpdateDto(BaseModel):
     status: str  # "in_progress", "resolved", "closed"

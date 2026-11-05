@@ -8,7 +8,7 @@ from repositories.volunteersRepository import VolunteerRepository
 from repositories.adminRepository import AdminRepository
 from repositories.notificationRepository import NotificationRepository
 from repositories.ticketStatusLogRepository import TicketStatusLogRepository
-from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto
+from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto, DeletedTicketResponseDto
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -284,6 +284,44 @@ class IncidentTicketUsecase:
             return []
         logs = self.status_log_repo.getLogsByTicketId(incident.id)
         return [TicketStatusLogResponseDto.model_validate(log) for log in logs]
+
+    def deleteTicket(self, public_case_id: str, admin_id: uuid.UUID, reason: str | None) -> DeletedTicketResponseDto:
+        # Soft delete: the row and its history stay; it just stops appearing anywhere.
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
+        if not incident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Incident ticket with ID {public_case_id} not found."
+            )
+        deleted = self.incident_repo.softDeleteTicket(incident, admin_id, reason.strip() if reason else None)
+        if self.status_log_repo:
+            self.status_log_repo.createStatusLog(TicketStatusLogEntity(
+                ticket_id=deleted.id,
+                volunteer_id=None,
+                from_status=deleted.status,
+                to_status="deleted",
+            ))
+        return DeletedTicketResponseDto.model_validate(deleted)
+
+    def restoreTicket(self, public_case_id: str) -> IncidentTicketResponseDto:
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id, include_deleted=True)
+        if not incident or incident.deleted_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Deleted ticket with ID {public_case_id} not found."
+            )
+        restored = self.incident_repo.restoreTicket(incident)
+        if self.status_log_repo:
+            self.status_log_repo.createStatusLog(TicketStatusLogEntity(
+                ticket_id=restored.id,
+                volunteer_id=None,
+                from_status="deleted",
+                to_status=restored.status,
+            ))
+        return IncidentTicketResponseDto.model_validate(restored)
+
+    def getDeletedTickets(self) -> List[DeletedTicketResponseDto]:
+        return [DeletedTicketResponseDto.model_validate(t) for t in self.incident_repo.getDeletedTickets()]
 
     # Helper method for creating notifications
     def _create_notification(self, ticket_id: uuid.UUID, recipient_type: str, recipient_id: str, message: str):
