@@ -11,6 +11,7 @@ from repositories.ticketStatusLogRepository import TicketStatusLogRepository
 from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto, DeletedTicketResponseDto
 import uuid
 from datetime import datetime, timedelta, timezone
+from utils.retention import retention_days
 from typing import List
 import random
 import string
@@ -301,7 +302,13 @@ class IncidentTicketUsecase:
                 from_status=deleted.status,
                 to_status="deleted",
             ))
-        return DeletedTicketResponseDto.model_validate(deleted)
+        return self._deleted_dto(deleted)
+
+    @staticmethod
+    def _deleted_dto(ticket) -> DeletedTicketResponseDto:
+        dto = DeletedTicketResponseDto.model_validate(ticket)
+        dto.purge_at = ticket.deleted_at + timedelta(days=retention_days())
+        return dto
 
     def restoreTicket(self, public_case_id: str) -> IncidentTicketResponseDto:
         incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id, include_deleted=True)
@@ -321,7 +328,7 @@ class IncidentTicketUsecase:
         return IncidentTicketResponseDto.model_validate(restored)
 
     def getDeletedTickets(self) -> List[DeletedTicketResponseDto]:
-        return [DeletedTicketResponseDto.model_validate(t) for t in self.incident_repo.getDeletedTickets()]
+        return [self._deleted_dto(t) for t in self.incident_repo.getDeletedTickets()]
 
     # Helper method for creating notifications
     def _create_notification(self, ticket_id: uuid.UUID, recipient_type: str, recipient_id: str, message: str):
