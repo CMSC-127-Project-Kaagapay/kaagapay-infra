@@ -127,3 +127,20 @@ def test_endpoint_rejects_bad_input(client):
 
 def test_deleted_route_is_not_shadowed_by_status_route(client):
     assert client.get("/admin/tickets/deleted").status_code == 200
+
+
+def test_page_loads_volunteer_handles_without_a_query_per_row(db):
+    from sqlalchemy import event
+    from models.dto.incidentTicketDto import IncidentTicketResponseDto
+
+    when = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    for i in range(10):
+        make_at(db, f"KGPY-N-{i:04d}", when + timedelta(minutes=i), status="claimed", volunteer=make_volunteer(db, f"vol{i}"))
+    db.expire_all()  # forget the objects the helpers created so lazy loads would really hit the database
+
+    statements = []
+    event.listen(db.get_bind(), "before_cursor_execute", lambda *a: statements.append(a[2]))
+    items, _ = IncidentTicketRepository(db).getTicketsPage("claimed", None, None, None, 1, 25)
+    handles = [IncidentTicketResponseDto.model_validate(t).assigned_volunteer_handle for t in items]
+    assert sorted(handles) == sorted(f"vol{i}" for i in range(10))
+    assert len(statements) <= 2, statements  # one for the page (with the volunteers joined in) and one for the count

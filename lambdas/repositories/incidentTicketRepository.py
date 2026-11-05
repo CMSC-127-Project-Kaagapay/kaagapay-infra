@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from models.entities.incidentTickets import IncidentTicketEntity
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
@@ -61,6 +61,8 @@ class IncidentTicketRepository:
         total = query.count()
         items = (
             query
+            # The response shows the volunteer's handle; load it in the same query instead of one query per row.
+            .options(joinedload(IncidentTicketEntity.assigned_volunteer))
             .order_by(IncidentTicketEntity.created_at.desc(), IncidentTicketEntity.id.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
