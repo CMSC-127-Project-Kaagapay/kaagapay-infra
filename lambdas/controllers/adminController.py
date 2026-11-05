@@ -6,7 +6,7 @@ import uuid
 from typing import List
 
 from db import get_db
-from models.dto.adminDto import AdminCreateDto, AdminResponseDto, NotificationResponseDto
+from models.dto.adminDto import AdminCreateDto, AdminMeDto, AdminResponseDto, NotificationResponseDto
 from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto, TicketPageResponseDto
 from controllers.incidentTicketController import get_incident_ticket_usecase
 from usecases.incidentTicketUsecase import IncidentTicketUsecase
@@ -21,6 +21,15 @@ router = APIRouter()
 
 
 # --- Admin Routes ---
+
+@router.get("/admin/me", response_model=AdminMeDto)
+async def get_me(
+    db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """Returns the signed-in admin (403 for anyone who is not an admin)."""
+    return AdminMeDto.model_validate(AdminRepository(db).getAdminById(admin_id))
+
 
 @router.get("/admin/tickets", response_model=List[IncidentTicketResponseDto])
 async def get_all_tickets(

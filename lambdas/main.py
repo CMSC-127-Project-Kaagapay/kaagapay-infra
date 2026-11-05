@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from controllers.appRouter import appRouter
 from cron_jobs.ticket_timeout_worker import run_ticket_timeout_worker
 from cron_jobs.notification_fanout_worker import run_notification_fanout_worker
+from cron_jobs.purge_deleted_tickets_worker import run_purge_deleted_tickets_worker
 
 import os
 
@@ -19,13 +20,15 @@ if not is_lambda:
     # Add jobs: run every 60 seconds
     scheduler.add_job(run_ticket_timeout_worker, "interval", seconds=60, id="ticket_timeout")
     scheduler.add_job(run_notification_fanout_worker, "interval", seconds=60, id="notification_fanout")
+    # Permanently remove tickets that stayed in the trash past the retention period (TICKET_RETENTION_DAYS, default 30).
+    scheduler.add_job(run_purge_deleted_tickets_worker, "interval", hours=1, id="purge_deleted_tickets")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if scheduler:
         scheduler.start()
-        print("🕐 Background scheduler started (ticket timeout + notification fanout every 60s)")
+        print("🕐 Background scheduler started (ticket timeout + notification fanout every 60s, purge of old deleted tickets hourly)")
     yield
     if scheduler:
         scheduler.shutdown()
