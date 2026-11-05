@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+from typing import Literal, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 import uuid
 from typing import List
 
 from db import get_db
 from models.dto.adminDto import AdminCreateDto, AdminResponseDto, NotificationResponseDto
-from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto
+from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto, TicketPageResponseDto
 from controllers.incidentTicketController import get_incident_ticket_usecase
 from usecases.incidentTicketUsecase import IncidentTicketUsecase
 from models.entities.admins import AdminEntity
@@ -75,25 +77,37 @@ async def restore_ticket(
     return incident_usecase.restoreTicket(public_case_id)
 
 
-@router.get("/admin/tickets/{ticket_status}", response_model=List[IncidentTicketResponseDto])
+TicketStatusParam = Literal["pending", "requested", "claimed", "in_progress", "resolved", "closed"]
+
+
+@router.get("/admin/tickets/{ticket_status}", response_model=TicketPageResponseDto)
 async def get_tickets_by_status(
-    ticket_status: str,
+    ticket_status: TicketStatusParam,
+    volunteer_id: Optional[uuid.UUID] = Query(None, description="Only tickets assigned to this volunteer"),
+    date_from: Optional[date] = Query(None, description="Created on or after this date (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="Created on or before this date (YYYY-MM-DD)"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
     admin_id: uuid.UUID = Depends(get_current_admin)
 ):
     """
-    Admin dashboard: Retrieves all incident tickets filtered by status.
-    Valid statuses: pending, claimed, in_progress, resolved, closed
+    Admin dashboard: one page of incident tickets for a status, newest first.
+    Optional filters: volunteer_id, date_from, date_to (inclusive).
     """
-    try:
-        incident_repo = IncidentTicketRepository(db)
-        tickets = incident_repo.getTicketsByStatus(ticket_status)
-        return [IncidentTicketResponseDto.model_validate(t) for t in tickets]
-    except Exception as e:
+    if date_from and date_to and date_from > date_to:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="date_from must be on or before date_to.",
         )
+    incident_repo = IncidentTicketRepository(db)
+    tickets, total = incident_repo.getTicketsPage(ticket_status, volunteer_id, date_from, date_to, page, page_size)
+    return TicketPageResponseDto(
+        items=[IncidentTicketResponseDto.model_validate(t) for t in tickets],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 

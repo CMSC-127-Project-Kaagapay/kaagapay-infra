@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from models.entities.incidentTickets import IncidentTicketEntity
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 class IncidentTicketRepository:
     def __init__(self, db: Session):
@@ -31,6 +31,42 @@ class IncidentTicketRepository:
             .order_by(IncidentTicketEntity.created_at.desc(), IncidentTicketEntity.id.desc())
             .all()
         )
+
+    def _filtered(self, ticket_status: str, volunteer_id: uuid.UUID | None, date_from: date | None, date_to: date | None):
+        # One builder for rows and counts, so the total always equals what the list can page through.
+        query = self._live().filter(IncidentTicketEntity.status == ticket_status)
+        if volunteer_id is not None:
+            query = query.filter(IncidentTicketEntity.assigned_volunteer_id == volunteer_id)
+        if date_from is not None:
+            query = query.filter(
+                IncidentTicketEntity.created_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+            )
+        if date_to is not None:
+            # date_to is inclusive: everything before the start of the next day.
+            query = query.filter(
+                IncidentTicketEntity.created_at < datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=timezone.utc)
+            )
+        return query
+
+    def getTicketsPage(
+        self,
+        ticket_status: str,
+        volunteer_id: uuid.UUID | None,
+        date_from: date | None,
+        date_to: date | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[IncidentTicketEntity], int]:
+        query = self._filtered(ticket_status, volunteer_id, date_from, date_to)
+        total = query.count()
+        items = (
+            query
+            .order_by(IncidentTicketEntity.created_at.desc(), IncidentTicketEntity.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return items, total
 
     def getDeletedTickets(self) -> list[IncidentTicketEntity]:
         return (
