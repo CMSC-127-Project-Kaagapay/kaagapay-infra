@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>You're invited to volunteer with Project Kaagapay</title>
+</head>
+<body style="margin:0;padding:0;background-color:#fff7f9;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#fff7f9;">Your volunteer application was approved. Set a password to sign in.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fff7f9;">
+<tr><td align="center" style="padding:32px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background-color:#ffffff;border:1px solid #dbbed3;border-radius:16px;">
+  <tr><td style="padding:32px 32px 8px 32px;font-family:Manrope,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="padding-right:12px;"><img src="{{ .SiteURL }}/apple-touch-icon.png" width="40" height="40" alt="" style="display:block;border:0;border-radius:20px;"></td>
+      <td style="font-family:Manrope,'Segoe UI',Helvetica,Arial,sans-serif;font-size:18px;line-height:24px;font-weight:700;color:#a500a5;">Project Kaagapay</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:16px 32px 0 32px;font-family:Manrope,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <h1 style="margin:0;font-size:24px;line-height:32px;font-weight:700;color:#241722;">Your volunteer application was approved</h1>
+    <p style="margin:16px 0 0 0;font-size:16px;line-height:26px;color:#241722;">Thank you for applying to volunteer with Project Kaagapay. Set a password to sign in and see the reports sent to you.</p>
+  </td></tr>
+  <tr><td style="padding:24px 32px 0 32px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td align="center" bgcolor="#a500a5" style="background-color:#a500a5;border-radius:12px;">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;font-family:Manrope,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;">Set your password</a>
+      </td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:24px 32px 0 32px;font-family:Manrope,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <p style="margin:0;font-size:16px;line-height:26px;color:#241722;">You'll sign in with this email address, {{ .Email }}. If the link has expired, ask a Kaagapay coordinator to send a new invitation. If you weren't expecting this email, you can ignore it.</p>
+    <p style="margin:16px 0 0 0;font-size:14px;line-height:22px;color:#554051;">Button not working? Copy and paste this link into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#a500a5;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+  </td></tr>
+  <tr><td style="padding:32px;font-family:Manrope,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #dbbed3;padding-top:16px;font-size:14px;line-height:22px;color:#554051;">
+      Questions? Write to <a href="mailto:proj.kaagapay@gmail.com" style="color:#a500a5;">proj.kaagapay@gmail.com</a>. Crisis hotline: (082) 293-0000.
+    </td></tr></table>
+  </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>
