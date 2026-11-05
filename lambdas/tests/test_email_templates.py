@@ -104,3 +104,16 @@ def test_a_refusal_from_supabase_is_reported_not_hidden(monkeypatch, capsys):
     monkeypatch.setattr(apply_templates.urllib.request, "urlopen", refuse)
     assert apply_templates.main(["--project-ref", "abc"]) == 1
     assert "403" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("name", FILES)
+def test_the_logo_is_a_small_square_png_that_the_template_points_at(name):
+    struct = __import__("struct")
+    logo = FOLDER / "email-logo.png"
+    data = logo.read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    width, height = struct.unpack(">II", data[16:24])
+    assert (width, height) == (192, 192)                      # shown at 48 px, so sharp on high-density screens
+    assert len(data) < 50_000                                 # light enough not to slow the email down
+    html = FILES[name].read_text()
+    assert 'src="{{ .SiteURL }}/email-logo.png"' in html and 'width="48" height="48"' in html
