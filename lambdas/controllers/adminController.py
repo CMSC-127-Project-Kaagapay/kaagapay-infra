@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+from typing import Literal, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 import uuid
 from typing import List
 
 from db import get_db
 from models.dto.adminDto import AdminCreateDto, AdminResponseDto, NotificationResponseDto
-from models.dto.incidentTicketDto import IncidentTicketResponseDto
+from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto, TicketPageResponseDto
+from controllers.incidentTicketController import get_incident_ticket_usecase
+from usecases.incidentTicketUsecase import IncidentTicketUsecase
 from models.entities.admins import AdminEntity
 from repositories.adminRepository import AdminRepository
 from repositories.incidentTicketRepository import IncidentTicketRepository
@@ -37,32 +41,73 @@ async def get_all_tickets(
         )
 
 
-@router.get("/admin/tickets/{ticket_status}", response_model=List[IncidentTicketResponseDto])
+@router.get("/admin/tickets/deleted", response_model=List[DeletedTicketResponseDto])
+async def get_deleted_tickets(
+    incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """
+    Admin dashboard: Retrieves soft-deleted tickets, newest deletion first.
+    """
+    return incident_usecase.getDeletedTickets()
+
+
+@router.delete("/admin/tickets/{public_case_id}", response_model=DeletedTicketResponseDto)
+async def delete_ticket(
+    public_case_id: str,
+    body: TicketDeleteDto = TicketDeleteDto(),
+    incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """
+    Admin dashboard: Soft-deletes a ticket. It disappears from all lists and can be restored.
+    """
+    return incident_usecase.deleteTicket(public_case_id, admin_id, body.reason)
+
+
+@router.post("/admin/tickets/{public_case_id}/restore", response_model=IncidentTicketResponseDto)
+async def restore_ticket(
+    public_case_id: str,
+    incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """
+    Admin dashboard: Restores a soft-deleted ticket.
+    """
+    return incident_usecase.restoreTicket(public_case_id)
+
+
+TicketStatusParam = Literal["pending", "requested", "claimed", "in_progress", "resolved", "closed"]
+
+
+@router.get("/admin/tickets/{ticket_status}", response_model=TicketPageResponseDto)
 async def get_tickets_by_status(
-    ticket_status: str,
+    ticket_status: TicketStatusParam,
+    volunteer_id: Optional[uuid.UUID] = Query(None, description="Only tickets assigned to this volunteer"),
+    date_from: Optional[date] = Query(None, description="Created on or after this date (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="Created on or before this date (YYYY-MM-DD)"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
     admin_id: uuid.UUID = Depends(get_current_admin)
 ):
     """
-    Admin dashboard: Retrieves all incident tickets filtered by status.
-    Valid statuses: pending, claimed, in_progress, resolved, closed
+    Admin dashboard: one page of incident tickets for a status, newest first.
+    Optional filters: volunteer_id, date_from, date_to (inclusive).
     """
-    from models.entities.incidentTickets import IncidentTicketEntity
-
-    try:
-        incident_repo = IncidentTicketRepository(db)
-        tickets = (
-            db.query(IncidentTicketEntity)
-            .filter(IncidentTicketEntity.status == ticket_status)
-            .order_by(IncidentTicketEntity.created_at.desc())
-            .all()
-        )
-        return [IncidentTicketResponseDto.model_validate(t) for t in tickets]
-    except Exception as e:
+    if date_from and date_to and date_from > date_to:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="date_from must be on or before date_to.",
         )
+    incident_repo = IncidentTicketRepository(db)
+    tickets, total = incident_repo.getTicketsPage(ticket_status, volunteer_id, date_from, date_to, page, page_size)
+    return TicketPageResponseDto(
+        items=[IncidentTicketResponseDto.model_validate(t) for t in tickets],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 
