@@ -8,12 +8,13 @@ from repositories.volunteersRepository import VolunteerRepository
 from repositories.adminRepository import AdminRepository
 from repositories.notificationRepository import NotificationRepository
 from repositories.ticketStatusLogRepository import TicketStatusLogRepository
-from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto
+from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto, DeletedTicketResponseDto
 import uuid
 from datetime import datetime, timedelta, timezone
+from utils.retention import retention_days
 from typing import List
-import random
-import string
+from sqlalchemy.exc import IntegrityError
+from utils.case_id import generate_case_id
 
 # Valid status transitions
 VALID_TRANSITIONS = {
@@ -48,7 +49,7 @@ class IncidentTicketUsecase:
         if incident_dto.routing_type == "specific":
             if not incident_dto.selected_volunteer_id:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_NOT_FOUND,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Specific routing requires a selected_volunteer_id."
                 )
             # Verify volunteer exists
@@ -74,24 +75,26 @@ class IncidentTicketUsecase:
         created_at = datetime.now(timezone.utc)
         expires_at = created_at + timedelta(minutes=15)
 
-        # Generate Public Case ID (e.g. KGPY-9A3F-88B2)
-        random_part_1 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        random_part_2 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        public_case_id = f"KGPY-{random_part_1}-{random_part_2}"
-
-        new_incident = IncidentTicketEntity(
-            public_case_id=public_case_id,
-            demographic=incident_dto.demographic,
-            locality=incident_dto.locality,
-            involved_party=incident_dto.involved_party,
-            routing_type=incident_dto.routing_type,
-            status=ticket_status,
-            assigned_volunteer_id=assigned_volunteer_id,
-            created_at=created_at,
-            expires_at=expires_at
-        )
-
-        created_incident = self.incident_repo.createIncidentTicket(new_incident)
+        # Generate a Public Case ID (e.g. KGPY-9A3F-88B2). Two reports could draw the same ID, so on a clash try again.
+        for attempt in range(5):
+            new_incident = IncidentTicketEntity(
+                public_case_id=generate_case_id(),
+                demographic=incident_dto.demographic,
+                locality=incident_dto.locality,
+                involved_party=incident_dto.involved_party,
+                routing_type=incident_dto.routing_type,
+                status=ticket_status,
+                assigned_volunteer_id=assigned_volunteer_id,
+                created_at=created_at,
+                expires_at=expires_at
+            )
+            try:
+                created_incident = self.incident_repo.createIncidentTicket(new_incident)
+                break
+            except IntegrityError:
+                self.incident_repo.db.rollback()
+                if attempt == 4:
+                    raise
 
         # --- Notification Creation Logic ---
         if incident_dto.routing_type == "specific":
@@ -284,6 +287,50 @@ class IncidentTicketUsecase:
             return []
         logs = self.status_log_repo.getLogsByTicketId(incident.id)
         return [TicketStatusLogResponseDto.model_validate(log) for log in logs]
+
+    def deleteTicket(self, public_case_id: str, admin_id: uuid.UUID, reason: str | None) -> DeletedTicketResponseDto:
+        # Soft delete: the row and its history stay; it just stops appearing anywhere.
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
+        if not incident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Incident ticket with ID {public_case_id} not found."
+            )
+        deleted = self.incident_repo.softDeleteTicket(incident, admin_id, reason.strip() if reason else None)
+        if self.status_log_repo:
+            self.status_log_repo.createStatusLog(TicketStatusLogEntity(
+                ticket_id=deleted.id,
+                volunteer_id=None,
+                from_status=deleted.status,
+                to_status="deleted",
+            ))
+        return self._deleted_dto(deleted)
+
+    @staticmethod
+    def _deleted_dto(ticket) -> DeletedTicketResponseDto:
+        dto = DeletedTicketResponseDto.model_validate(ticket)
+        dto.purge_at = ticket.deleted_at + timedelta(days=retention_days())
+        return dto
+
+    def restoreTicket(self, public_case_id: str) -> IncidentTicketResponseDto:
+        incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id, include_deleted=True)
+        if not incident or incident.deleted_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Deleted ticket with ID {public_case_id} not found."
+            )
+        restored = self.incident_repo.restoreTicket(incident)
+        if self.status_log_repo:
+            self.status_log_repo.createStatusLog(TicketStatusLogEntity(
+                ticket_id=restored.id,
+                volunteer_id=None,
+                from_status="deleted",
+                to_status=restored.status,
+            ))
+        return IncidentTicketResponseDto.model_validate(restored)
+
+    def getDeletedTickets(self) -> List[DeletedTicketResponseDto]:
+        return [self._deleted_dto(t) for t in self.incident_repo.getDeletedTickets()]
 
     # Helper method for creating notifications
     def _create_notification(self, ticket_id: uuid.UUID, recipient_type: str, recipient_id: str, message: str):

@@ -15,6 +15,7 @@ from models.entities.notifications import NotificationEntity
 from models.entities.ticketStatusLogs import TicketStatusLogEntity
 from models.entities.incidentTickets import IncidentTicketEntity
 from models.entities.admins import AdminEntity
+from models.entities.ticketPurgeLogs import TicketPurgeLogEntity
 
 # Load environment variables from .env (explicit path to avoid CWD issues)
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")

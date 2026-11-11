@@ -1,6 +1,7 @@
 import logging
 from cron_jobs.ticket_timeout_worker import run_ticket_timeout_worker
 from cron_jobs.notification_fanout_worker import run_notification_fanout_worker
+from cron_jobs.purge_deleted_tickets_worker import run_purge_deleted_tickets_worker
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -24,6 +25,12 @@ def handler(event, context):
         run_notification_fanout_worker()
     except Exception as e:
         logger.error(f"Error executing notification_fanout_worker: {e}", exc_info=True)
+
+    try:
+        logger.info("Running purge of old deleted tickets...")
+        run_purge_deleted_tickets_worker()
+    except Exception as e:
+        logger.error(f"Error executing purge_deleted_tickets_worker: {e}", exc_info=True)
 
     logger.info("Scheduled background worker execution completed.")
     return {

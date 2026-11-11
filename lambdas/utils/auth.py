@@ -9,6 +9,7 @@ from typing import Optional
 import uuid
 
 from db import get_db
+from utils.errors import internal_error
 from repositories.adminRepository import AdminRepository
 
 ALGORITHM = "HS256"
@@ -107,8 +108,5 @@ def get_current_admin(
         raise e
     except Exception as e:
         print(f"Auth Exception: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Admin auth failed: {e}"
-        )
+        raise internal_error(e, "admin check")
 
