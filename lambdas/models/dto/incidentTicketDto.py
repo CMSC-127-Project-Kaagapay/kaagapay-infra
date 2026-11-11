@@ -39,6 +39,7 @@ class DeletedTicketResponseDto(IncidentTicketResponseDto):
     deleted_at: datetime
     deleted_by: Optional[uuid.UUID] = None
     deleted_reason: Optional[str] = None
+    purge_at: Optional[datetime] = None  # when it is permanently removed unless restored first
 
 class TicketStatusUpdateDto(BaseModel):
     status: str  # "in_progress", "resolved", "closed"

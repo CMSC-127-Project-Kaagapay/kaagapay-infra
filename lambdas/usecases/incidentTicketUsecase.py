@@ -11,9 +11,10 @@ from repositories.ticketStatusLogRepository import TicketStatusLogRepository
 from models.dto.incidentTicketDto import IncidentTicketCreateDto, IncidentTicketResponseDto, TicketStatusLogResponseDto, DeletedTicketResponseDto
 import uuid
 from datetime import datetime, timedelta, timezone
+from utils.retention import retention_days
 from typing import List
-import random
-import string
+from sqlalchemy.exc import IntegrityError
+from utils.case_id import generate_case_id
 
 # Valid status transitions
 VALID_TRANSITIONS = {
@@ -48,7 +49,7 @@ class IncidentTicketUsecase:
         if incident_dto.routing_type == "specific":
             if not incident_dto.selected_volunteer_id:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_NOT_FOUND,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Specific routing requires a selected_volunteer_id."
                 )
             # Verify volunteer exists
@@ -74,24 +75,26 @@ class IncidentTicketUsecase:
         created_at = datetime.now(timezone.utc)
         expires_at = created_at + timedelta(minutes=15)
 
-        # Generate Public Case ID (e.g. KGPY-9A3F-88B2)
-        random_part_1 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        random_part_2 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        public_case_id = f"KGPY-{random_part_1}-{random_part_2}"
-
-        new_incident = IncidentTicketEntity(
-            public_case_id=public_case_id,
-            demographic=incident_dto.demographic,
-            locality=incident_dto.locality,
-            involved_party=incident_dto.involved_party,
-            routing_type=incident_dto.routing_type,
-            status=ticket_status,
-            assigned_volunteer_id=assigned_volunteer_id,
-            created_at=created_at,
-            expires_at=expires_at
-        )
-
-        created_incident = self.incident_repo.createIncidentTicket(new_incident)
+        # Generate a Public Case ID (e.g. KGPY-9A3F-88B2). Two reports could draw the same ID, so on a clash try again.
+        for attempt in range(5):
+            new_incident = IncidentTicketEntity(
+                public_case_id=generate_case_id(),
+                demographic=incident_dto.demographic,
+                locality=incident_dto.locality,
+                involved_party=incident_dto.involved_party,
+                routing_type=incident_dto.routing_type,
+                status=ticket_status,
+                assigned_volunteer_id=assigned_volunteer_id,
+                created_at=created_at,
+                expires_at=expires_at
+            )
+            try:
+                created_incident = self.incident_repo.createIncidentTicket(new_incident)
+                break
+            except IntegrityError:
+                self.incident_repo.db.rollback()
+                if attempt == 4:
+                    raise
 
         # --- Notification Creation Logic ---
         if incident_dto.routing_type == "specific":
@@ -301,7 +304,13 @@ class IncidentTicketUsecase:
                 from_status=deleted.status,
                 to_status="deleted",
             ))
-        return DeletedTicketResponseDto.model_validate(deleted)
+        return self._deleted_dto(deleted)
+
+    @staticmethod
+    def _deleted_dto(ticket) -> DeletedTicketResponseDto:
+        dto = DeletedTicketResponseDto.model_validate(ticket)
+        dto.purge_at = ticket.deleted_at + timedelta(days=retention_days())
+        return dto
 
     def restoreTicket(self, public_case_id: str) -> IncidentTicketResponseDto:
         incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id, include_deleted=True)
@@ -321,7 +330,7 @@ class IncidentTicketUsecase:
         return IncidentTicketResponseDto.model_validate(restored)
 
     def getDeletedTickets(self) -> List[DeletedTicketResponseDto]:
-        return [DeletedTicketResponseDto.model_validate(t) for t in self.incident_repo.getDeletedTickets()]
+        return [self._deleted_dto(t) for t in self.incident_repo.getDeletedTickets()]
 
     # Helper method for creating notifications
     def _create_notification(self, ticket_id: uuid.UUID, recipient_type: str, recipient_id: str, message: str):

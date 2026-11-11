@@ -6,7 +6,8 @@ import uuid
 from typing import List
 
 from db import get_db
-from models.dto.adminDto import AdminCreateDto, AdminResponseDto, NotificationResponseDto
+from utils.errors import internal_error
+from models.dto.adminDto import AdminCreateDto, AdminMeDto, AdminResponseDto, NotificationResponseDto
 from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto, TicketPageResponseDto
 from controllers.incidentTicketController import get_incident_ticket_usecase
 from usecases.incidentTicketUsecase import IncidentTicketUsecase
@@ -22,6 +23,15 @@ router = APIRouter()
 
 # --- Admin Routes ---
 
+@router.get("/admin/me", response_model=AdminMeDto)
+async def get_me(
+    db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """Returns the signed-in admin (403 for anyone who is not an admin)."""
+    return AdminMeDto.model_validate(AdminRepository(db).getAdminById(admin_id))
+
+
 @router.get("/admin/tickets", response_model=List[IncidentTicketResponseDto])
 async def get_all_tickets(
     db: Session = Depends(get_db),
@@ -35,10 +45,7 @@ async def get_all_tickets(
         tickets = incident_repo.getAllIncidentTickets()
         return [IncidentTicketResponseDto.model_validate(t) for t in tickets]
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.get("/admin/tickets/deleted", response_model=List[DeletedTicketResponseDto])
@@ -138,10 +145,7 @@ async def get_admin_notifications(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.get("/admin/admins", response_model=List[AdminResponseDto])
@@ -157,10 +161,7 @@ async def get_all_admins(
         admins = admin_repo.getAllAdmins()
         return [AdminResponseDto.model_validate(a) for a in admins]
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.post("/admin", response_model=AdminResponseDto, status_code=status.HTTP_201_CREATED)
@@ -197,8 +198,5 @@ async def create_admin(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 

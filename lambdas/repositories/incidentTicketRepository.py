@@ -1,5 +1,8 @@
 from sqlalchemy.orm import Session, joinedload
 from models.entities.incidentTickets import IncidentTicketEntity
+from models.entities.notifications import NotificationEntity
+from models.entities.ticketStatusLogs import TicketStatusLogEntity
+from models.entities.ticketPurgeLogs import TicketPurgeLogEntity
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -136,3 +139,32 @@ class IncidentTicketRepository:
             .order_by(IncidentTicketEntity.created_at.desc(), IncidentTicketEntity.id.desc())
             .all()
         )
+
+    def purgeDeletedBefore(self, cutoff: datetime, retention_days: int, batch_size: int = 200) -> int:
+        """Permanently remove tickets soft-deleted at or before `cutoff`, with their logs and notifications.
+
+        Each removal leaves one content-free row in ticket_purge_logs. Returns how many tickets were removed.
+        """
+        expired = (
+            self.db.query(IncidentTicketEntity)
+            .filter(IncidentTicketEntity.deleted_at.isnot(None), IncidentTicketEntity.deleted_at <= cutoff)
+            .order_by(IncidentTicketEntity.deleted_at, IncidentTicketEntity.id)
+            .limit(batch_size)
+            .all()
+        )
+        try:
+            for ticket in expired:
+                self.db.add(TicketPurgeLogEntity(
+                    public_case_id=ticket.public_case_id,
+                    deleted_at=ticket.deleted_at,
+                    deleted_by=ticket.deleted_by,
+                    retention_days=retention_days,
+                ))
+                self.db.query(NotificationEntity).filter(NotificationEntity.ticket_id == ticket.id).delete(synchronize_session=False)
+                self.db.query(TicketStatusLogEntity).filter(TicketStatusLogEntity.ticket_id == ticket.id).delete(synchronize_session=False)
+                self.db.query(IncidentTicketEntity).filter(IncidentTicketEntity.id == ticket.id).delete(synchronize_session=False)
+            self.db.commit()  # all or nothing for the batch
+        except Exception:
+            self.db.rollback()
+            raise
+        return len(expired)

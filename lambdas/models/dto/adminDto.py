@@ -55,3 +55,13 @@ class NotificationResponseDto(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminMeDto(BaseModel):
+    """Who the signed-in admin is. The site uses this to decide whether to show admin pages."""
+    id: uuid.UUID
+    first_name: str
+    last_name: str
+    role: Optional[str] = None
+
+    model_config = {"from_attributes": True}
