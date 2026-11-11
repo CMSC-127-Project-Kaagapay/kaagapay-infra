@@ -8,6 +8,7 @@ import uuid
 from typing import List, Dict
 from supabase import create_client, Client
 import os
+from utils.errors import internal_error
 
 
 class VolunteersUsecase:
@@ -151,10 +152,7 @@ class VolunteersUsecase:
             
         except Exception as e:
             print(f"Failed to approve volunteer and create account: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create account and approve application: {e}"
-            )
+            raise internal_error(e, "volunteer application")
 
     def rejectVolunteerApplication(self, application_id: uuid.UUID, admin_id: uuid.UUID | None = None) -> VolunteerApplicationResponseDto:
         application = self.appRepo.getVolunteerApplicationById(application_id)
@@ -183,7 +181,4 @@ class VolunteersUsecase:
             
         except Exception as e:
             print(f"Failed to reject volunteer: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to reject application: {e}"
-            )
+            raise internal_error(e, "volunteer application")

@@ -4,6 +4,7 @@ import uuid
 from typing import List
 
 from db import get_db
+from utils.errors import internal_error
 from models.dto.incidentTicketDto import (
     IncidentTicketCreateDto,
     IncidentTicketResponseDto,
@@ -54,10 +55,7 @@ async def create_incident_report(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.get("/incidents/pending", response_model=List[IncidentTicketResponseDto])
@@ -71,10 +69,7 @@ async def get_all_pending_tickets(
     try:
         return incident_usecase.getAllPendingTicketsNoVolunteers()
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.get("/incidents/requested", response_model=List[IncidentTicketResponseDto])
@@ -88,10 +83,7 @@ async def get_requested_tickets_for_volunteer(
     try:
         return incident_usecase.getRequestedTicketsForVolunteer(volunteer_id)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.post("/incidents/{public_case_id}/claim", response_model=IncidentTicketResponseDto)
@@ -109,10 +101,7 @@ async def claim_incident_ticket(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.get("/incidents/{public_case_id}", response_model=IncidentTicketResponseDto)
@@ -129,10 +118,7 @@ async def get_incident_ticket(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.patch("/incidents/{public_case_id}/status", response_model=IncidentTicketResponseDto)
@@ -154,10 +140,7 @@ async def update_ticket_status(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.get("/incidents/{public_case_id}/logs", response_model=List[TicketStatusLogResponseDto])
@@ -173,10 +156,7 @@ async def get_ticket_status_logs(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
 
 
 @router.get("/volunteers/notifications", response_model=List[NotificationResponseDto])
@@ -196,7 +176,4 @@ async def get_volunteer_notifications(
         )
         return [NotificationResponseDto.model_validate(n) for n in notifications]
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {e}",
-        )
+        raise internal_error(e)
