@@ -5,6 +5,7 @@ from datetime import datetime
 
 
 class AdminCreateDto(BaseModel):
+    id: uuid.UUID          # the Supabase account (auth user id) to make an admin
     first_name: str
     last_name: str
     email: str
@@ -15,6 +16,7 @@ class AdminCreateDto(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
+                "id": "00000000-0000-0000-0000-000000000000",
                 "first_name": "Adriane",
                 "last_name": "Pena",
                 "email": "adrianenathanielpena@gmail.com",
