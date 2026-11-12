@@ -167,25 +167,25 @@ async def get_all_admins(
 @router.post("/admin", response_model=AdminResponseDto, status_code=status.HTTP_201_CREATED)
 async def create_admin(
     admin_dto: AdminCreateDto,
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    caller_id: uuid.UUID = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """
-    Registers the authenticated user as an admin.
-    Use this to create your initial admin account.
+    Makes the Supabase account `id` an admin. Only an existing admin may call this (403 otherwise).
+    The very first admin is added directly in the database.
     """
     try:
         admin_repo = AdminRepository(db)
         
         # Check if already an admin
-        if admin_repo.getAdminById(user_id):
+        if admin_repo.getAdminById(admin_dto.id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User is already an admin."
             )
             
         new_admin = AdminEntity(
-            id=user_id,
+            id=admin_dto.id,
             first_name=admin_dto.first_name,
             last_name=admin_dto.last_name,
             email=admin_dto.email,
