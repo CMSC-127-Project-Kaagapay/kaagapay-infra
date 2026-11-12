@@ -67,3 +67,35 @@ class AdminMeDto(BaseModel):
     role: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class MonthlyTrendItem(BaseModel):
+    label: str
+    year: int
+    month: int
+    count: int
+
+
+class QuarterlyTrendItem(BaseModel):
+    label: str
+    year: int
+    quarter: int
+    count: int
+
+
+class IncidentTrendsDto(BaseModel):
+    monthly: list[MonthlyTrendItem]
+    quarterly: list[QuarterlyTrendItem]
+
+
+class AdminStatsDto(BaseModel):
+    active_reports: int
+    pending_reports: int
+    claimed_reports: int
+    in_progress_reports: int
+    total_tickets: int
+    resolved_tickets: int
+    resolution_rate: float
+    pending_applications: int
+    active_volunteers: int
+    incident_trends: IncidentTrendsDto
