@@ -7,7 +7,7 @@ from typing import List
 
 from db import get_db
 from utils.errors import internal_error
-from models.dto.adminDto import AdminCreateDto, AdminMeDto, AdminResponseDto, NotificationResponseDto
+from models.dto.adminDto import AdminCreateDto, AdminMeDto, AdminResponseDto, NotificationResponseDto, AdminStatsDto
 from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto, TicketPageResponseDto
 from controllers.incidentTicketController import get_incident_ticket_usecase
 from usecases.incidentTicketUsecase import IncidentTicketUsecase
@@ -30,6 +30,20 @@ async def get_me(
 ):
     """Returns the signed-in admin (403 for anyone who is not an admin)."""
     return AdminMeDto.model_validate(AdminRepository(db).getAdminById(admin_id))
+
+
+@router.get("/admin/stats", response_model=AdminStatsDto)
+async def get_admin_stats(
+    db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin)
+):
+    """
+    Admin dashboard: Returns real aggregate statistics and incident trends.
+    """
+    try:
+        return AdminRepository(db).getAdminStats()
+    except Exception as e:
+        raise internal_error(e)
 
 
 @router.get("/admin/tickets", response_model=List[IncidentTicketResponseDto])
