@@ -31,8 +31,12 @@ def contrast(a, b):
 @pytest.mark.parametrize("name", FILES)
 def test_the_sign_in_link_is_in_the_button_and_in_a_copyable_fallback(name):
     html = FILES[name].read_text()
-    assert html.count("{{ .ConfirmationURL }}") == 3          # button href, fallback link href, fallback link text
-    assert 'href="{{ .ConfirmationURL }}"' in html and "Copy and paste this link" in html
+    kind = "recovery" if name == "recovery" else "invite"
+    link = "{{ .SiteURL }}/set-password?token_hash={{ .TokenHash }}&amp;type=" + kind
+    assert html.count(link) == 3                              # button href, fallback link href, fallback link text
+    assert f'href="{link}"' in html and "Copy and paste this link" in html
+    # The token is used when the person presses Continue on our page, not when a mail scanner opens the link.
+    assert "{{ .ConfirmationURL }}" not in html
 
 
 @pytest.mark.parametrize("name", FILES)
