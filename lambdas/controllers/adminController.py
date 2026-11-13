@@ -9,6 +9,7 @@ from db import get_db
 from utils.errors import internal_error
 from models.dto.adminDto import AdminCreateDto, AdminMeDto, AdminResponseDto, NotificationResponseDto, AdminStatsDto
 from models.dto.incidentTicketDto import IncidentTicketResponseDto, DeletedTicketResponseDto, TicketDeleteDto, TicketPageResponseDto
+from models.dto.volunteerDto import VolunteerResponseDto
 from controllers.incidentTicketController import get_incident_ticket_usecase
 from usecases.incidentTicketUsecase import IncidentTicketUsecase
 from models.entities.admins import AdminEntity
@@ -213,4 +214,49 @@ async def create_admin(
         raise e
     except Exception as e:
         raise internal_error(e)
+
+
+def _update_volunteer_status(db: Session, volunteer_id: uuid.UUID, new_status: str) -> VolunteerResponseDto:
+    """Update a volunteer's status (e.g. 'revoked' or 'active') and return the DTO."""
+    volunteer_repo = VolunteerRepository(db)
+    volunteer = volunteer_repo.getVolunteerById(volunteer_id)
+    if not volunteer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
+    volunteer.status = new_status
+    updated = volunteer_repo.updateVolunteer(volunteer)
+    return VolunteerResponseDto.model_validate(updated)
+
+
+@router.get("/admin/volunteers", response_model=List[VolunteerResponseDto])
+async def get_admin_volunteers(
+    include_revoked: bool = Query(True),
+    db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin),
+):
+    """Admin dashboard: Retrieves volunteers, optionally including revoked ones."""
+    try:
+        volunteers = VolunteerRepository(db).getAllVolunteers(include_revoked=include_revoked)
+        return [VolunteerResponseDto.model_validate(v) for v in volunteers]
+    except Exception as e:
+        raise internal_error(e)
+
+
+@router.patch("/admin/volunteers/{volunteer_id}/revoke", response_model=VolunteerResponseDto)
+async def revoke_volunteer(
+    volunteer_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin),
+):
+    """Admin dashboard: Soft-revokes a volunteer so they are hidden from public and report lists."""
+    return _update_volunteer_status(db, volunteer_id, "revoked")
+
+
+@router.patch("/admin/volunteers/{volunteer_id}/restore", response_model=VolunteerResponseDto)
+async def restore_volunteer(
+    volunteer_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    admin_id: uuid.UUID = Depends(get_current_admin),
+):
+    """Admin dashboard: Restores a revoked volunteer back to active status."""
+    return _update_volunteer_status(db, volunteer_id, "active")
 

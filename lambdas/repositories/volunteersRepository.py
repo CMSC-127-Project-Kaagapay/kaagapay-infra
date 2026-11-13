@@ -7,8 +7,11 @@ class VolunteerRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def getAllVolunteers(self):
-        return self.db.query(VolunteerEntity).all()
+    def getAllVolunteers(self, include_revoked: bool = False):
+        query = self.db.query(VolunteerEntity)
+        if not include_revoked:
+            query = query.filter(VolunteerEntity.status != "revoked")
+        return query.all()
 
     def getVolunteerById(self, volunteerId: uuid.UUID):
         return (
