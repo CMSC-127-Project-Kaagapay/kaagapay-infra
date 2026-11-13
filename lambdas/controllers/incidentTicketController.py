@@ -86,6 +86,20 @@ async def get_requested_tickets_for_volunteer(
         raise internal_error(e)
 
 
+@router.get("/incidents/assigned", response_model=List[IncidentTicketResponseDto])
+async def get_assigned_tickets_for_volunteer(
+    volunteer_id: uuid.UUID = Depends(get_current_user_id),
+    incident_usecase: IncidentTicketUsecase = Depends(get_incident_ticket_usecase),
+):
+    """
+    Retrieves all claimed/in-progress/resolved/closed tickets assigned to the authenticated volunteer.
+    """
+    try:
+        return incident_usecase.getAssignedTicketsForVolunteer(volunteer_id)
+    except Exception as e:
+        raise internal_error(e)
+
+
 @router.post("/incidents/{public_case_id}/claim", response_model=IncidentTicketResponseDto)
 async def claim_incident_ticket(
     public_case_id: str,
