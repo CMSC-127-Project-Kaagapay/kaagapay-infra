@@ -132,6 +132,18 @@ class IncidentTicketRepository:
             .all()
         )
 
+    def getAssignedTicketsForVolunteer(self, volunteer_id: uuid.UUID) -> list[IncidentTicketEntity]:
+        """Return live tickets claimed by or assigned to `volunteer_id` (excluding pending 'requested')."""
+        return (
+            self._live()
+            .filter(
+                IncidentTicketEntity.assigned_volunteer_id == volunteer_id,
+                IncidentTicketEntity.status != "requested",
+            )
+            .order_by(IncidentTicketEntity.created_at.desc(), IncidentTicketEntity.id.desc())
+            .all()
+        )
+
     def getAllIncidentTickets(self) -> list[IncidentTicketEntity]:
         # Get all tickets for admin dashboard
         return (

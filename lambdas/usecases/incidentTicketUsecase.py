@@ -225,6 +225,11 @@ class IncidentTicketUsecase:
         incidents = self.incident_repo.getRequestedTicketsForVolunteer(volunteer_id)
         return [IncidentTicketResponseDto.model_validate(incident) for incident in incidents]
 
+    def getAssignedTicketsForVolunteer(self, volunteer_id: uuid.UUID) -> List[IncidentTicketResponseDto]:
+        """Retrieve tickets claimed/handled by `volunteer_id`."""
+        incidents = self.incident_repo.getAssignedTicketsForVolunteer(volunteer_id)
+        return [IncidentTicketResponseDto.model_validate(incident) for incident in incidents]
+
     def updateTicketStatus(self, public_case_id: str, new_status: str, volunteer_id: uuid.UUID) -> IncidentTicketResponseDto:
         incident = self.incident_repo.getIncidentTicketByPublicId(public_case_id)
 
